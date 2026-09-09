@@ -24,29 +24,41 @@
             No captured answers are available for review yet.
         </div>
 
-        <div th:unless="${answeredCount == 0}" class="row g-4">
-            <div class="col-12" th:each="section : ${sections}">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h2 class="h5 fw-bold mb-0" th:text="${section.name}">Section</h2>
-                        <span class="badge rounded-pill text-bg-secondary"
-                              th:text="${section.entries.size()} + ' Q'">10 Q</span>
-                    </div>
-                    <div class="card-body py-2">
-                        <div th:if="${section.isEmpty()}" class="text-muted small py-2">
-                            No questions answered in this section.
+        <div th:unless="${answeredCount == 0}">
+            <div class="row g-4">
+                <div class="col-12" th:each="section : ${sections}">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h2 class="h5 fw-bold mb-0" th:text="${section.name}">Section</h2>
+                            <span class="badge rounded-pill text-bg-secondary"
+                                  th:text="${section.entries.size()} + ' Q'">10 Q</span>
                         </div>
-                        <div th:unless="${section.isEmpty()}" th:each="entry : ${section.entries}">
-                            <div class="py-3 border-bottom answer-entry">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                                    <span class="fw-semibold" th:text="${entry.questionText}">Question text</span>
-                                    <span class="badge text-bg-light border text-muted" th:text="${entry.questionType}">TYPE</span>
+                        <div class="card-body py-2">
+                            <div th:if="${section.isEmpty()}" class="text-muted small py-2">
+                                No questions answered in this section.
+                            </div>
+                            <div th:unless="${section.isEmpty()}" th:each="entry : ${section.entries}">
+                                <div class="py-3 border-bottom answer-entry">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                        <span class="fw-semibold" th:text="${entry.questionText}">Question text</span>
+                                        <span class="badge text-bg-light border text-muted" th:text="${entry.questionType}">TYPE</span>
+                                    </div>
+                                    <p class="mb-0 mt-1" th:text="${entry.answer}">Patient answer</p>
+                                    <button type="button" class="btn btn-sm btn-outline-success mt-2 mark-reviewed-btn">Mark reviewed</button>
                                 </div>
-                                <p class="mb-0 mt-1" th:text="${entry.answer}">Patient answer</p>
-                                <button type="button" class="btn btn-sm btn-outline-success mt-2 mark-reviewed-btn">Mark reviewed</button>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div id="completionArea" class="mt-4">
+                <div id="reviewCompleteBanner" class="alert alert-success d-none" role="alert">
+                    <strong>Review completed.</strong> All captured answers have been reviewed.
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <button id="completeReviewBtn" type="button" class="btn btn-success" disabled>Complete Review</button>
+                    <span class="text-muted small">Review all <span th:text="${answeredCount}">25</span> answers before completing.</span>
                 </div>
             </div>
         </div>
@@ -68,6 +80,9 @@
 document.addEventListener('DOMContentLoaded', function () {
     var entries = document.querySelectorAll('.answer-entry');
     var countEl = document.getElementById('reviewedCount');
+    var completeBtn = document.getElementById('completeReviewBtn');
+    var reviewCompleteBanner = document.getElementById('reviewCompleteBanner');
+    var completionArea = document.getElementById('completionArea');
     var reviewedCount = 0;
 
     entries.forEach(function (entry) {
@@ -79,7 +94,15 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.textContent = 'Reviewed ✓';
             reviewedCount++;
             countEl.textContent = reviewedCount;
+            if (reviewedCount >= entries.length) {
+                completeBtn.disabled = false;
+            }
         });
+    });
+
+    completeBtn.addEventListener('click', function () {
+        completionArea.querySelector('.d-flex').classList.add('d-none');
+        reviewCompleteBanner.classList.remove('d-none');
     });
 });
 </script>

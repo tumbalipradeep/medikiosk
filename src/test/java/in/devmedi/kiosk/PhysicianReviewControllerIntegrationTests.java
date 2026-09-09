@@ -84,4 +84,15 @@ class PhysicianReviewControllerIntegrationTests {
                 .andExpect(content().string(containsString("mark-reviewed-btn")))
                 .andExpect(content().string(containsString("Mark reviewed")));
     }
+
+    @Test
+    void reviewPageRendersCompleteReviewButtonInitiallyDisabled() throws Exception {
+        MockHttpSession session = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("completeReviewBtn")))
+                .andExpect(content().string(containsString("Complete Review")))
+                .andExpect(content().string(containsString("Review completed")))
+                .andExpect(content().string(containsString("d-none")));
+    }
 }
