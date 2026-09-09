@@ -74,4 +74,14 @@ class PhysicianReviewControllerIntegrationTests {
                         "Bright light and loud noise make it worse; lying down in a dark, quiet room helps.")))
                 .andExpect(content().string(containsString("Occasional evening tea; no smoking and no alcohol.")));
     }
+
+    @Test
+    void reviewPageRendersMarkReviewedControlsAndCountIndicator() throws Exception {
+        MockHttpSession session = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("reviewedCount")))
+                .andExpect(content().string(containsString("mark-reviewed-btn")))
+                .andExpect(content().string(containsString("Mark reviewed")));
+    }
 }

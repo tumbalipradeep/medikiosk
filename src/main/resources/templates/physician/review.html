@@ -15,6 +15,9 @@
                 <p class="text-muted mb-0">Clinical conversation summary &mdash; chief complaint, Dashavidha Pariksha, and Ahara-Vihara</p>
             </div>
             <span class="badge text-bg-primary" th:text="${answeredCount} + ' captured answers'">25 captured answers</span>
+                <span class="badge text-bg-success">
+                    <span id="reviewedCount">0</span> / <span th:text="${answeredCount}">25</span> reviewed
+                </span>
         </div>
 
         <div th:if="${answeredCount == 0}" class="alert alert-info" role="alert">
@@ -34,12 +37,13 @@
                             No questions answered in this section.
                         </div>
                         <div th:unless="${section.isEmpty()}" th:each="entry : ${section.entries}">
-                            <div class="py-3 border-bottom">
+                            <div class="py-3 border-bottom answer-entry">
                                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                                     <span class="fw-semibold" th:text="${entry.questionText}">Question text</span>
                                     <span class="badge text-bg-light border text-muted" th:text="${entry.questionType}">TYPE</span>
                                 </div>
                                 <p class="mb-0 mt-1" th:text="${entry.answer}">Patient answer</p>
+                                <button type="button" class="btn btn-sm btn-outline-success mt-2 mark-reviewed-btn">Mark reviewed</button>
                             </div>
                         </div>
                     </div>
@@ -56,5 +60,28 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script th:src="@{/js/app.js}"></script>
+<style>
+.answer-reviewed { background-color: rgba(13,202,40,.06) !important; }
+.mark-reviewed-btn:disabled { cursor: default; opacity: 1; }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var entries = document.querySelectorAll('.answer-entry');
+    var countEl = document.getElementById('reviewedCount');
+    var reviewedCount = 0;
+
+    entries.forEach(function (entry) {
+        var btn = entry.querySelector('.mark-reviewed-btn');
+        btn.addEventListener('click', function () {
+            if (entry.classList.contains('answer-reviewed')) return;
+            entry.classList.add('answer-reviewed');
+            btn.disabled = true;
+            btn.textContent = 'Reviewed ✓';
+            reviewedCount++;
+            countEl.textContent = reviewedCount;
+        });
+    });
+});
+</script>
 </body>
 </html>
