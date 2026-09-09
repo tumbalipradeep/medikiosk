@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Unexpected Error - MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Unexpected Error - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<main class="flex-grow-1 d-flex align-items-center">
+    <div class="container" style="max-width: 560px;">
+        <div class="card shadow-sm">
+            <div class="card-body p-5 text-center">
+                <h1 class="display-6 fw-bold mb-3 medikiosk-title">Unexpected Error</h1>
+                <p class="text-muted mb-4">Something went wrong. Please try again later.</p>
+                <a href="/" class="btn btn-primary">Return to Home</a>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

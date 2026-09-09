@@ -1,0 +1,102 @@
+:root {
+    --medikiosk-primary: #0d6efd;
+    --medikiosk-accent: #0dcaf0;
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.medikiosk-title {
+    color: var(--medikiosk-primary);
+    letter-spacing: 0.5px;
+}
+
+/* Patient intake conversation */
+.intake-conversation {
+    max-width: 900px;
+}
+
+.intake-card {
+    border-radius: 0.75rem;
+}
+
+.intake-header {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.chat-window {
+    height: 55vh;
+    min-height: 320px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.chat-message {
+    display: flex;
+}
+
+.chat-message.assistant {
+    justify-content: flex-start;
+}
+
+.chat-message.patient {
+    justify-content: flex-end;
+}
+
+.chat-bubble {
+    max-width: 80%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 1rem;
+    line-height: 1.45;
+    word-wrap: break-word;
+}
+
+.chat-message.assistant .chat-bubble {
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-bottom-left-radius: 0.25rem;
+    color: #212529;
+}
+
+.chat-message.patient .chat-bubble {
+    background: var(--medikiosk-primary);
+    border-bottom-right-radius: 0.25rem;
+    color: #ffffff;
+}
+
+.chat-text {
+    white-space: pre-wrap;
+}
+
+.chat-message.urgent {
+    justify-content: center;
+}
+
+.chat-message.urgent .chat-bubble {
+    background: #dc3545;
+    border: 2px solid #b02a37;
+    color: #ffffff;
+    border-radius: 1rem;
+    max-width: 100%;
+}
+
+.urgent-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+@media (max-width: 575.98px) {
+    .chat-bubble {
+        max-width: 90%;
+    }
+}
