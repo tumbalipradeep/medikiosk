@@ -1,6 +1,7 @@
 package in.devmedi.kiosk;
 
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
+import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,10 +126,61 @@ class PhysicianReviewControllerIntegrationTests {
         completePatientIntake(patient);
 
         assertThat(reviewStore.latest()).isPresent();
-        assertThat(reviewStore.latest().orElseThrow().size()).isEqualTo(25);
-        assertThat(reviewStore.latest().orElseThrow().all())
+        assertThat(reviewStore.latest().orElseThrow().result().size()).isEqualTo(25);
+        assertThat(reviewStore.latest().orElseThrow().result().all())
                 .extracting(entry -> entry.answer())
                 .contains("Nagging pain in my left knee", "Occasional evening walking; daily morning yoga");
+    }
+
+    @Test
+    void completedIntakeRegistersACaseWithAStableIdentity() throws Exception {
+        reviewStore.clear();
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+
+        CompletedCase completed = reviewStore.latest().orElseThrow();
+        assertThat(completed.id()).startsWith("case-");
+        assertThat(completed.result()).isNotNull();
+        assertThat(completed.result().size()).isEqualTo(25);
+    }
+
+    @Test
+    void caseIdentityIsStableWhileHeldInTheStore() throws Exception {
+        reviewStore.clear();
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+
+        CompletedCase first = reviewStore.latest().orElseThrow();
+        CompletedCase second = reviewStore.latest().orElseThrow();
+
+        assertThat(second.id()).isEqualTo(first.id());
+        assertThat(second.result()).isSameAs(first.result());
+    }
+
+    @Test
+    void aNewCompletedIntakeReplacesTheCaseWithANewIdentity() throws Exception {
+        reviewStore.clear();
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+        String firstCaseId = reviewStore.latest().orElseThrow().id();
+
+        completePatientIntake(patient);
+        CompletedCase replaced = reviewStore.latest().orElseThrow();
+
+        assertThat(replaced.id()).isNotEqualTo(firstCaseId);
+        assertThat(replaced.result().size()).isEqualTo(25);
+    }
+
+    @Test
+    void noCaseIdentityWhenStoreIsEmpty() throws Exception {
+        reviewStore.clear();
+
+        assertThat(reviewStore.latest()).isEmpty();
+
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No reviewable intake yet")));
     }
 
     @Test
@@ -162,6 +214,19 @@ class PhysicianReviewControllerIntegrationTests {
                 .andExpect(content().string(not(containsString("Dashavidha Pariksha"))))
                 .andExpect(content().string(not(containsString("mark-reviewed-btn"))))
                 .andExpect(content().string(not(containsString("completeReviewBtn"))));
+    }
+
+    @Test
+    void physicianReviewPageExposesTheCompletedCaseIdentity() throws Exception {
+        reviewStore.clear();
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+        String caseId = reviewStore.latest().orElseThrow().id();
+
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Case " + caseId)));
     }
 
     @Test

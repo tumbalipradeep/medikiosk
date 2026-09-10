@@ -1,9 +1,9 @@
 package in.devmedi.kiosk.module.physician.controller;
 
 import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
-import in.devmedi.kiosk.module.clinical.dialogue.ClinicalConversationResult;
 import in.devmedi.kiosk.module.clinical.summary.ClinicalSummary;
 import in.devmedi.kiosk.module.clinical.summary.ClinicalSummaryBuilder;
+import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -27,12 +27,14 @@ public class PhysicianReviewController {
 
     @GetMapping("/physician/review")
     public String review(@AuthenticationPrincipal ApplicationUserDetails user, Model model) {
-        Optional<ClinicalConversationResult> latest = reviewStore.latest();
+        Optional<CompletedCase> latest = reviewStore.latest();
         model.addAttribute("user", user);
         model.addAttribute("role", "Physician");
         if (latest.isPresent()) {
-            ClinicalSummary summary = summaryBuilder.summarize(latest.get());
+            CompletedCase completedCase = latest.get();
+            ClinicalSummary summary = summaryBuilder.summarize(completedCase.result());
             model.addAttribute("hasCompletedCase", true);
+            model.addAttribute("caseId", completedCase.id());
             model.addAttribute("sections", summary.sections());
             model.addAttribute("answeredCount", summary.answeredCount());
         } else {
