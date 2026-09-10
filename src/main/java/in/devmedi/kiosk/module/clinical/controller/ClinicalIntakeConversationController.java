@@ -15,6 +15,8 @@ import in.devmedi.kiosk.module.clinical.dialogue.QuestionPlanner;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlag;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagEvaluator;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagSeverity;
+import in.devmedi.kiosk.module.physician.service.CompletedCase;
+import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
@@ -57,6 +59,7 @@ public class ClinicalIntakeConversationController {
     private final AharaViharaQuestionPlanner aharaViharaQuestionPlanner;
     private final RedFlagEvaluator redFlagEvaluator;
     private final CompletedCaseReviewStore reviewStore;
+    private final CompletedCasePersistenceService casePersistence;
 
     private final Set<String> clinicalQuestionIds;
     private final Set<String> dashavidhaQuestionIds;
@@ -66,12 +69,14 @@ public class ClinicalIntakeConversationController {
                                                 DashavidhaQuestionPlanner dashavidhaQuestionPlanner,
                                                 AharaViharaQuestionPlanner aharaViharaQuestionPlanner,
                                                 RedFlagEvaluator redFlagEvaluator,
-                                                CompletedCaseReviewStore reviewStore) {
+                                                CompletedCaseReviewStore reviewStore,
+                                                CompletedCasePersistenceService casePersistence) {
         this.questionPlanner = questionPlanner;
         this.dashavidhaQuestionPlanner = dashavidhaQuestionPlanner;
         this.aharaViharaQuestionPlanner = aharaViharaQuestionPlanner;
         this.redFlagEvaluator = redFlagEvaluator;
         this.reviewStore = reviewStore;
+        this.casePersistence = casePersistence;
         this.clinicalQuestionIds = questionPlanner.questions().stream()
                 .map(ClinicalQuestion::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -187,7 +192,8 @@ public class ClinicalIntakeConversationController {
             return new ClinicalIntakeResponse(IntakeQuestion.fromAharaVihara(question),
                     DialogueState.IN_PROGRESS, false, redFlags, urgency);
         }
-        reviewStore.register(result);
+        CompletedCase completedCase = reviewStore.register(result);
+        casePersistence.save(completedCase);
         return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true, redFlags, urgency);
     }
 }

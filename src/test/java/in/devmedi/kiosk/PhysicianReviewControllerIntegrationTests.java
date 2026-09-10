@@ -2,7 +2,9 @@ package in.devmedi.kiosk;
 
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
+import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -71,6 +73,15 @@ class PhysicianReviewControllerIntegrationTests {
     @Autowired
     private CompletedCaseReviewStore reviewStore;
 
+    @Autowired
+    private CompletedCasePersistenceService casePersistence;
+
+    @BeforeEach
+    void clearPersistedData() {
+        reviewStore.clear();
+        casePersistence.deleteAll();
+    }
+
     private MockHttpSession login(String username, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/login")
                         .param("username", username)
@@ -121,7 +132,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void completedPatientIntakeIsRegisteredInTheReviewStore() throws Exception {
-        reviewStore.clear();
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
 
@@ -134,7 +144,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void completedIntakeRegistersACaseWithAStableIdentity() throws Exception {
-        reviewStore.clear();
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
 
@@ -146,7 +155,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void caseIdentityIsStableWhileHeldInTheStore() throws Exception {
-        reviewStore.clear();
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
 
@@ -159,7 +167,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void aNewCompletedIntakeReplacesTheCaseWithANewIdentity() throws Exception {
-        reviewStore.clear();
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
         String firstCaseId = reviewStore.latest().orElseThrow().id();
@@ -173,7 +180,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void noCaseIdentityWhenStoreIsEmpty() throws Exception {
-        reviewStore.clear();
 
         assertThat(reviewStore.latest()).isEmpty();
 
@@ -185,7 +191,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void physicianReviewReadsTheRegisteredCompletedCase() throws Exception {
-        reviewStore.clear();
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
 
@@ -206,7 +211,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void physicianReviewShowsEmptyStateWhenNoCompletedCase() throws Exception {
-        reviewStore.clear();
         MockHttpSession physician = login("physician", "physician123");
         mockMvc.perform(get("/physician/review").session(physician))
                 .andExpect(status().isOk())
@@ -218,7 +222,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Test
     void physicianReviewPageExposesTheCompletedCaseIdentity() throws Exception {
-        reviewStore.clear();
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
         String caseId = reviewStore.latest().orElseThrow().id();

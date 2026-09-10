@@ -4,6 +4,7 @@ import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
 import in.devmedi.kiosk.module.clinical.summary.ClinicalSummary;
 import in.devmedi.kiosk.module.clinical.summary.ClinicalSummaryBuilder;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
+import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -17,17 +18,20 @@ import java.util.Optional;
 public class PhysicianReviewController {
 
     private final CompletedCaseReviewStore reviewStore;
+    private final CompletedCasePersistenceService casePersistence;
     private final ClinicalSummaryBuilder summaryBuilder;
 
     public PhysicianReviewController(CompletedCaseReviewStore reviewStore,
+                                     CompletedCasePersistenceService casePersistence,
                                      ClinicalSummaryBuilder summaryBuilder) {
         this.reviewStore = reviewStore;
+        this.casePersistence = casePersistence;
         this.summaryBuilder = summaryBuilder;
     }
 
     @GetMapping("/physician/review")
     public String review(@AuthenticationPrincipal ApplicationUserDetails user, Model model) {
-        Optional<CompletedCase> latest = reviewStore.latest();
+        Optional<CompletedCase> latest = reviewStore.latest().or(() -> casePersistence.findLatest());
         model.addAttribute("user", user);
         model.addAttribute("role", "Physician");
         if (latest.isPresent()) {
