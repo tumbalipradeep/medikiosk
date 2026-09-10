@@ -1,19 +1,26 @@
 package in.devmedi.kiosk;
 
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
+import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,11 +28,47 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class PhysicianReviewControllerIntegrationTests {
 
+    private static final List<String> HPI_IDS = List.of(
+            "chief_complaint_symptom",
+            "hpi_onset",
+            "hpi_provocation_palliation",
+            "hpi_quality",
+            "hpi_region_radiation",
+            "hpi_severity",
+            "hpi_timing_duration");
+
+    private static final List<String> DASHAVIDHA_IDS = List.of(
+            "dashavidha_prakriti",
+            "dashavidha_vikriti",
+            "dashavidha_sara",
+            "dashavidha_samhanana",
+            "dashavidha_pramana",
+            "dashavidha_satmya",
+            "dashavidha_sattva",
+            "dashavidha_ahara_shakti",
+            "dashavidha_vyayama_shakti",
+            "dashavidha_vaya");
+
+    private static final List<String> AHARA_VIHARA_IDS = List.of(
+            "ahara_vihara_ahara",
+            "ahara_vihara_meal_pattern",
+            "ahara_vihara_appetite",
+            "ahara_vihara_hydration",
+            "ahara_vihara_sleep",
+            "ahara_vihara_physical_activity",
+            "ahara_vihara_daily_routine",
+            "ahara_vihara_habits");
+
+    private static final String ORDINARY = "a normal patient description";
+
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private CompletedCaseReviewStore reviewStore;
 
     private MockHttpSession login(String username, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/login")
@@ -37,13 +80,88 @@ class PhysicianReviewControllerIntegrationTests {
         return (MockHttpSession) result.getRequest().getSession(false);
     }
 
-    @Test
-    void physicianCanAccessReviewPage() throws Exception {
-        MockHttpSession session = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(session))
+    private void startConversation(MockHttpSession session) throws Exception {
+        mockMvc.perform(post("/patient/intake/conversation/start")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Physician Review")))
-                .andExpect(content().string(containsString("25 captured answers")));
+                .andExpect(jsonPath("$.question.id").value("chief_complaint_symptom"));
+    }
+
+    private void answer(MockHttpSession session, String questionId, String answerText) throws Exception {
+        mockMvc.perform(post("/patient/intake/conversation/answer")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"questionId\":\"" + questionId + "\",\"answer\":\""
+                                + answerText.replace("\"", "\\\"") + "\"}")
+                        .with(csrf()))
+                .andExpect(status().isOk());
+    }
+
+    private void answerIds(MockHttpSession session, List<String> ids, String answerText) throws Exception {
+        for (String id : ids) {
+            answer(session, id, answerText);
+        }
+    }
+
+    private void completePatientIntake(MockHttpSession session) throws Exception {
+        String chief = "Nagging pain in my left knee";
+        String dashavidha = "Sturdy build, feels warm most of the time";
+        String habits = "Occasional evening walking; daily morning yoga";
+        startConversation(session);
+        answer(session, "chief_complaint_symptom", chief);
+        answerIds(session, HPI_IDS.subList(1, HPI_IDS.size()), ORDINARY);
+        answer(session, "dashavidha_prakriti", dashavidha);
+        answerIds(session, DASHAVIDHA_IDS.subList(1, DASHAVIDHA_IDS.size()), ORDINARY);
+        answerIds(session, AHARA_VIHARA_IDS.subList(0, AHARA_VIHARA_IDS.size() - 1), ORDINARY);
+        answer(session, "ahara_vihara_habits", habits);
+    }
+
+    @Test
+    void completedPatientIntakeIsRegisteredInTheReviewStore() throws Exception {
+        reviewStore.clear();
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+
+        assertThat(reviewStore.latest()).isPresent();
+        assertThat(reviewStore.latest().orElseThrow().size()).isEqualTo(25);
+        assertThat(reviewStore.latest().orElseThrow().all())
+                .extracting(entry -> entry.answer())
+                .contains("Nagging pain in my left knee", "Occasional evening walking; daily morning yoga");
+    }
+
+    @Test
+    void physicianReviewReadsTheRegisteredCompletedCase() throws Exception {
+        reviewStore.clear();
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("History of Present Illness / SOCRATES")))
+                .andExpect(content().string(containsString("Dashavidha Pariksha")))
+                .andExpect(content().string(containsString("Ahara-Vihara")))
+                .andExpect(content().string(containsString("25 captured answers")))
+                .andExpect(content().string(containsString("Nagging pain in my left knee")))
+                .andExpect(content().string(containsString("Sturdy build, feels warm most of the time")))
+                .andExpect(content().string(containsString("Occasional evening walking; daily morning yoga")))
+                .andExpect(content().string(not(containsString("Severe headache"))))
+                .andExpect(content().string(containsString("mark-reviewed-btn")))
+                .andExpect(content().string(containsString("completeReviewBtn")));
+    }
+
+    @Test
+    void physicianReviewShowsEmptyStateWhenNoCompletedCase() throws Exception {
+        reviewStore.clear();
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No reviewable intake yet")))
+                .andExpect(content().string(not(containsString("Dashavidha Pariksha"))))
+                .andExpect(content().string(not(containsString("mark-reviewed-btn"))))
+                .andExpect(content().string(not(containsString("completeReviewBtn"))));
     }
 
     @Test
@@ -58,41 +176,5 @@ class PhysicianReviewControllerIntegrationTests {
         mockMvc.perform(get("/physician/review"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login"));
-    }
-
-    @Test
-    void reviewPageRendersAllSectionsAndRawAnswers() throws Exception {
-        MockHttpSession session = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(session))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("History of Present Illness / SOCRATES")))
-                .andExpect(content().string(containsString("Dashavidha Pariksha")))
-                .andExpect(content().string(containsString("Ahara-Vihara")))
-                .andExpect(content().string(containsString(
-                        "Severe headache, mainly on the right side, since the day before yesterday.")))
-                .andExpect(content().string(containsString(
-                        "Bright light and loud noise make it worse; lying down in a dark, quiet room helps.")))
-                .andExpect(content().string(containsString("Occasional evening tea; no smoking and no alcohol.")));
-    }
-
-    @Test
-    void reviewPageRendersMarkReviewedControlsAndCountIndicator() throws Exception {
-        MockHttpSession session = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(session))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("reviewedCount")))
-                .andExpect(content().string(containsString("mark-reviewed-btn")))
-                .andExpect(content().string(containsString("Mark reviewed")));
-    }
-
-    @Test
-    void reviewPageRendersCompleteReviewButtonInitiallyDisabled() throws Exception {
-        MockHttpSession session = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(session))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("completeReviewBtn")))
-                .andExpect(content().string(containsString("Complete Review")))
-                .andExpect(content().string(containsString("Review completed")))
-                .andExpect(content().string(containsString("d-none")));
     }
 }

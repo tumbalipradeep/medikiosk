@@ -15,6 +15,7 @@ import in.devmedi.kiosk.module.clinical.dialogue.QuestionPlanner;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlag;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagEvaluator;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagSeverity;
+import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,7 +42,9 @@ import java.util.stream.Stream;
  * AharaViharaQuestionPlanner after the tenth Dashavidha parameter, and finally
  * completes after the eighth Ahara-Vihara parameter. Every submitted answer is
  * also captured, in order, into an in-memory {@link ClinicalConversationResult}
- * kept in the HTTP session (nothing is persisted). No AI providers are used.</p>
+ * kept in the HTTP session (nothing is persisted). When the intake completes,
+ * that result is handed to the physician review store so a physician can review
+ * the finished case in-memory. No AI providers are used.</p>
  */
 @RestController
 @RequestMapping("/patient/intake/conversation")
@@ -53,6 +56,7 @@ public class ClinicalIntakeConversationController {
     private final DashavidhaQuestionPlanner dashavidhaQuestionPlanner;
     private final AharaViharaQuestionPlanner aharaViharaQuestionPlanner;
     private final RedFlagEvaluator redFlagEvaluator;
+    private final CompletedCaseReviewStore reviewStore;
 
     private final Set<String> clinicalQuestionIds;
     private final Set<String> dashavidhaQuestionIds;
@@ -61,11 +65,13 @@ public class ClinicalIntakeConversationController {
     public ClinicalIntakeConversationController(QuestionPlanner questionPlanner,
                                                 DashavidhaQuestionPlanner dashavidhaQuestionPlanner,
                                                 AharaViharaQuestionPlanner aharaViharaQuestionPlanner,
-                                                RedFlagEvaluator redFlagEvaluator) {
+                                                RedFlagEvaluator redFlagEvaluator,
+                                                CompletedCaseReviewStore reviewStore) {
         this.questionPlanner = questionPlanner;
         this.dashavidhaQuestionPlanner = dashavidhaQuestionPlanner;
         this.aharaViharaQuestionPlanner = aharaViharaQuestionPlanner;
         this.redFlagEvaluator = redFlagEvaluator;
+        this.reviewStore = reviewStore;
         this.clinicalQuestionIds = questionPlanner.questions().stream()
                 .map(ClinicalQuestion::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -181,6 +187,7 @@ public class ClinicalIntakeConversationController {
             return new ClinicalIntakeResponse(IntakeQuestion.fromAharaVihara(question),
                     DialogueState.IN_PROGRESS, false, redFlags, urgency);
         }
+        reviewStore.register(result);
         return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true, redFlags, urgency);
     }
 }
