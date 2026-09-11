@@ -3,6 +3,7 @@ package in.devmedi.kiosk;
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalAnswer;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalConversationResult;
+import in.devmedi.kiosk.module.clinical.dialogue.QuestionSource;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,7 +91,27 @@ class CompletedCasePersistenceServiceIntegrationTests {
         assertThat(loaded.section()).isEqualTo("CHIEF_COMPLAINT");
         assertThat(loaded.questionType()).isEqualTo("SYMPTOM");
         assertThat(loaded.questionText()).isEqualTo("Describe your main problem");
+        assertThat(loaded.displayedQuestionText()).isEqualTo("Describe your main problem");
+        assertThat(loaded.questionSource()).isEqualTo(QuestionSource.DETERMINISTIC);
         assertThat(loaded.answer()).isEqualTo("Throbbing headache");
+    }
+
+    @Test
+    void displayedAiQuestionAndSourceSurvivePersistence() {
+        ClinicalConversationResult result = new ClinicalConversationResult();
+        result.record(new ClinicalAnswer("hpi_onset", "HISTORY_OF_PRESENT_ILLNESS", "ONSET",
+                "When did it first start?",
+                "AI phrase: When did it first start?",
+                "Three days ago", QuestionSource.AI_GENERATED));
+        CompletedCase completed = CompletedCase.withNewId(result);
+        persistence.save(completed);
+
+        ClinicalAnswer loaded = persistence.findByCaseId(completed.id()).orElseThrow()
+                .result().all().getFirst();
+        assertThat(loaded.questionText()).isEqualTo("When did it first start?");
+        assertThat(loaded.displayedQuestionText()).isEqualTo("AI phrase: When did it first start?");
+        assertThat(loaded.questionSource()).isEqualTo(QuestionSource.AI_GENERATED);
+        assertThat(loaded.answer()).isEqualTo("Three days ago");
     }
 
     @Test

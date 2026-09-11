@@ -19,10 +19,11 @@ import java.time.Instant;
  * One captured clinical answer of a persisted completed case.
  *
  * <p>Stores every field of the original {@link ClinicalAnswer} verbatim —
- * question id, clinical section, question type, question text, and the raw
- * patient answer — along with {@code answerOrder} so the original answering
- * order is preserved exactly on retrieval. Nothing is summarized or modified
- * before persistence.</p>
+ * question id, clinical section, question type, canonical question text, the
+ * displayed question text, the question source (AI or deterministic), and the
+ * raw patient answer — along with {@code answerOrder} so the original
+ * answering order is preserved exactly on retrieval. Nothing is summarized or
+ * modified before persistence.</p>
  */
 @Entity
 @Table(name = "completed_case_answers", uniqueConstraints = {
@@ -54,6 +55,12 @@ public class CompletedCaseAnswerEntity {
     @Column(name = "question_text", nullable = false, length = 1000)
     private String questionText;
 
+    @Column(name = "displayed_question_text", nullable = false, length = 1000)
+    private String displayedQuestionText;
+
+    @Column(name = "question_source", nullable = false, length = 16)
+    private String questionSource;
+
     @Column(nullable = false, length = 4000)
     private String answer;
 
@@ -73,6 +80,11 @@ public class CompletedCaseAnswerEntity {
         entity.section = clinicalAnswer.section();
         entity.questionType = clinicalAnswer.questionType();
         entity.questionText = clinicalAnswer.questionText();
+        entity.displayedQuestionText = clinicalAnswer.displayedQuestionText() == null
+                ? clinicalAnswer.questionText() : clinicalAnswer.displayedQuestionText();
+        entity.questionSource = clinicalAnswer.questionSource() == null
+                ? in.devmedi.kiosk.module.clinical.dialogue.QuestionSource.DETERMINISTIC.name()
+                : clinicalAnswer.questionSource().name();
         entity.answer = clinicalAnswer.answer();
         return entity;
     }
@@ -85,7 +97,12 @@ public class CompletedCaseAnswerEntity {
     }
 
     public ClinicalAnswer toClinicalAnswer() {
-        return new ClinicalAnswer(questionId, section, questionType, questionText, answer);
+        return new ClinicalAnswer(questionId, section, questionType, questionText,
+                displayedQuestionText == null ? questionText : displayedQuestionText, answer,
+                in.devmedi.kiosk.module.clinical.dialogue.QuestionSource
+                        .valueOf(questionSource == null
+                                ? in.devmedi.kiosk.module.clinical.dialogue.QuestionSource.DETERMINISTIC.name()
+                                : questionSource));
     }
 
     public Long getId() {
@@ -114,6 +131,14 @@ public class CompletedCaseAnswerEntity {
 
     public String getQuestionText() {
         return questionText;
+    }
+
+    public String getDisplayedQuestionText() {
+        return displayedQuestionText;
+    }
+
+    public String getQuestionSource() {
+        return questionSource;
     }
 
     public String getAnswer() {

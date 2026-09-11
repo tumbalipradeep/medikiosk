@@ -1,6 +1,9 @@
 package in.devmedi.kiosk.module.clinical.controller;
 
 import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
+import in.devmedi.kiosk.module.clinical.ai.AiConversationService;
+import in.devmedi.kiosk.module.clinical.ai.NextQuestionSource;
+import in.devmedi.kiosk.module.clinical.ai.NextQuestionWording;
 import in.devmedi.kiosk.module.clinical.ayush.AharaViharaQuestion;
 import in.devmedi.kiosk.module.clinical.ayush.DashavidhaQuestion;
 import in.devmedi.kiosk.module.clinical.ayush.AharaViharaQuestionPlanner;
@@ -13,6 +16,7 @@ import in.devmedi.kiosk.module.clinical.dialogue.ClinicalQuestion;
 import in.devmedi.kiosk.module.clinical.dialogue.DialogueState;
 import in.devmedi.kiosk.module.clinical.dialogue.IntakeQuestion;
 import in.devmedi.kiosk.module.clinical.dialogue.QuestionPlanner;
+import in.devmedi.kiosk.module.clinical.dialogue.QuestionSource;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlag;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagEvaluator;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagSeverity;
@@ -29,11 +33,12 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Backend step endpoint for the patient clinical intake conversation.
@@ -46,15 +51,25 @@ import java.util.stream.Stream;
  * AharaViharaQuestionPlanner after the tenth Dashavidha parameter, and finally
  * completes after the eighth Ahara-Vihara parameter. Every submitted answer is
  * also captured, in order, into an in-memory {@link ClinicalConversationResult}
- * kept in the HTTP session (nothing is persisted). When the intake completes,
- * that result is handed to the physician review store so a physician can review
- * the finished case in-memory. No AI providers are used.</p>
+ * kept in the HTTP session. When the intake completes, that result is handed to
+ * the physician review store and persisted as a completed case.
+ *
+ * <p>AI assistance (adaptive): when an AI provider is configured, a validated
+ * provider may phrase the next deterministic question conversationally or ask a
+ * short in-objective clarification of the latest answer. The question id,
+ * section, type, objective, progression, completion, and red-flag evaluation
+ * always stay deterministic. The wording actually shown and its source (AI or
+ * deterministic) are recorded alongside the canonical question and the patient's
+ * verbatim answer, so the clinical record preserves the exact truth. Without
+ * credentials, or on any provider or validation failure, the canonical
+ * deterministic question is used unchanged.</p>
  */
 @RestController
 @RequestMapping("/patient/intake/conversation")
 public class ClinicalIntakeConversationController {
 
     public static final String RESULT_ATTRIBUTE = "clinicalConversationResult";
+    public static final String DISPLAYED_ATTRIBUTE = "clinicalConversationDisplayed";
 
     private final QuestionPlanner questionPlanner;
     private final DashavidhaQuestionPlanner dashavidhaQuestionPlanner;
@@ -62,6 +77,7 @@ public class ClinicalIntakeConversationController {
     private final RedFlagEvaluator redFlagEvaluator;
     private final CompletedCaseReviewStore reviewStore;
     private final CompletedCasePersistenceService casePersistence;
+    private final AiConversationService aiConversationService;
 
     private final Set<String> clinicalQuestionIds;
     private final Set<String> dashavidhaQuestionIds;
@@ -72,13 +88,15 @@ public class ClinicalIntakeConversationController {
                                                 AharaViharaQuestionPlanner aharaViharaQuestionPlanner,
                                                 RedFlagEvaluator redFlagEvaluator,
                                                 CompletedCaseReviewStore reviewStore,
-                                                CompletedCasePersistenceService casePersistence) {
+                                                CompletedCasePersistenceService casePersistence,
+                                                AiConversationService aiConversationService) {
         this.questionPlanner = questionPlanner;
         this.dashavidhaQuestionPlanner = dashavidhaQuestionPlanner;
         this.aharaViharaQuestionPlanner = aharaViharaQuestionPlanner;
         this.redFlagEvaluator = redFlagEvaluator;
         this.reviewStore = reviewStore;
         this.casePersistence = casePersistence;
+        this.aiConversationService = aiConversationService;
         this.clinicalQuestionIds = questionPlanner.questions().stream()
                 .map(ClinicalQuestion::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -94,6 +112,7 @@ public class ClinicalIntakeConversationController {
     @ResponseStatus(HttpStatus.OK)
     public ClinicalIntakeResponse start(HttpSession session) {
         session.setAttribute(RESULT_ATTRIBUTE, new ClinicalConversationResult());
+        session.setAttribute(DISPLAYED_ATTRIBUTE, new LinkedHashMap<String, DisplayedQuestion>());
         IntakeQuestion first = IntakeQuestion.fromClinical(questionPlanner.firstQuestion());
         return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false, List.of(), RedFlagSeverity.NONE, null);
     }
@@ -107,16 +126,17 @@ public class ClinicalIntakeConversationController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "questionId is required");
         }
         ClinicalConversationResult result = resultFor(session);
+        Map<String, DisplayedQuestion> displayed = displayedFor(session);
 
         String questionId = request.questionId();
         if (clinicalQuestionIds.contains(questionId)) {
-            return handleClinicalAnswer(questionId, request.answer(), result);
+            return handleClinicalAnswer(questionId, request.answer(), result, displayed);
         }
         if (dashavidhaQuestionIds.contains(questionId)) {
-            return handleDashavidhaAnswer(questionId, request.answer(), result);
+            return handleDashavidhaAnswer(questionId, request.answer(), result, displayed);
         }
         if (aharaViharaQuestionIds.contains(questionId)) {
-            return handleAharaViharaAnswer(questionId, request.answer(), result, principal);
+            return handleAharaViharaAnswer(questionId, request.answer(), result, displayed, principal);
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown question id: " + questionId);
     }
@@ -130,27 +150,52 @@ public class ClinicalIntakeConversationController {
         return result;
     }
 
+    private Map<String, DisplayedQuestion> displayedFor(HttpSession session) {
+        Map<String, DisplayedQuestion> displayed =
+                (Map<String, DisplayedQuestion>) session.getAttribute(DISPLAYED_ATTRIBUTE);
+        if (displayed == null) {
+            displayed = new LinkedHashMap<>();
+            session.setAttribute(DISPLAYED_ATTRIBUTE, displayed);
+        }
+        return displayed;
+    }
+
     /**
      * Advances within the unchanged SOCRATES/HPI sequence. After the final HPI
      * question the conversation transitions to the first Dashavidha question
      * rather than completing.
      */
     private ClinicalIntakeResponse handleClinicalAnswer(String questionId, String answer,
-                                                       ClinicalConversationResult result) {
+                                                       ClinicalConversationResult result,
+                                                       Map<String, DisplayedQuestion> displayed) {
         ClinicalQuestion answered = questionPlanner.question(questionId);
-        result.record(ClinicalAnswer.from(IntakeQuestion.fromClinical(answered), answer));
+        recordAnswered(IntakeQuestion.fromClinical(answered), answer, displayed, result);
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answered, answer);
         RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
 
         Optional<ClinicalQuestion> next = questionPlanner.nextQuestion(answered.id());
         if (next.isPresent()) {
             ClinicalQuestion question = next.get();
-            return new ClinicalIntakeResponse(IntakeQuestion.fromClinical(question),
+            IntakeQuestion nextQuestion = conversationalWording(
+                    IntakeQuestion.fromClinical(question),
+                    answered.section().name(),
+                    question.type().name(),
+                    answer,
+                    result,
+                    displayed);
+            return new ClinicalIntakeResponse(nextQuestion,
                     DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
         }
 
         DashavidhaQuestion firstDashavidha = dashavidhaQuestionPlanner.firstQuestion();
-        return new ClinicalIntakeResponse(IntakeQuestion.fromDashavidha(firstDashavidha),
+        IntakeQuestion nextQuestion = conversationalWording(
+                IntakeQuestion.fromDashavidha(firstDashavidha),
+                IntakeQuestion.DASHAVIDHA_SECTION,
+                firstDashavidha.parameter().name(),
+                answer,
+                result,
+                displayed);
+        return new ClinicalIntakeResponse(nextQuestion,
                 DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
     }
 
@@ -160,21 +205,36 @@ public class ClinicalIntakeConversationController {
      * completing.
      */
     private ClinicalIntakeResponse handleDashavidhaAnswer(String questionId, String answer,
-                                                          ClinicalConversationResult result) {
+                                                          ClinicalConversationResult result,
+                                                          Map<String, DisplayedQuestion> displayed) {
         DashavidhaQuestion answered = dashavidhaQuestionPlanner.question(questionId);
-        result.record(ClinicalAnswer.from(IntakeQuestion.fromDashavidha(answered), answer));
+        recordAnswered(IntakeQuestion.fromDashavidha(answered), answer, displayed, result);
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
         RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
 
         Optional<DashavidhaQuestion> next = dashavidhaQuestionPlanner.nextQuestion(answered.id());
         if (next.isPresent()) {
             DashavidhaQuestion question = next.get();
-            return new ClinicalIntakeResponse(IntakeQuestion.fromDashavidha(question),
+            IntakeQuestion nextQuestion = conversationalWording(
+                    IntakeQuestion.fromDashavidha(question),
+                    IntakeQuestion.DASHAVIDHA_SECTION,
+                    question.parameter().name(),
+                    answer,
+                    result,
+                    displayed);
+            return new ClinicalIntakeResponse(nextQuestion,
                     DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
         }
 
         AharaViharaQuestion firstAharaVihara = aharaViharaQuestionPlanner.firstQuestion();
-        return new ClinicalIntakeResponse(IntakeQuestion.fromAharaVihara(firstAharaVihara),
+        IntakeQuestion nextQuestion = conversationalWording(
+                IntakeQuestion.fromAharaVihara(firstAharaVihara),
+                IntakeQuestion.AHARA_VIHARA_SECTION,
+                firstAharaVihara.parameter().name(),
+                answer,
+                result,
+                displayed);
+        return new ClinicalIntakeResponse(nextQuestion,
                 DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
     }
 
@@ -184,21 +244,77 @@ public class ClinicalIntakeConversationController {
      */
     private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String answer,
                                                            ClinicalConversationResult result,
+                                                           Map<String, DisplayedQuestion> displayed,
                                                            ApplicationUserDetails principal) {
         AharaViharaQuestion answered = aharaViharaQuestionPlanner.question(questionId);
-        result.record(ClinicalAnswer.from(IntakeQuestion.fromAharaVihara(answered), answer));
+        recordAnswered(IntakeQuestion.fromAharaVihara(answered), answer, displayed, result);
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
         RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
 
         Optional<AharaViharaQuestion> next = aharaViharaQuestionPlanner.nextQuestion(answered.id());
         if (next.isPresent()) {
             AharaViharaQuestion question = next.get();
-            return new ClinicalIntakeResponse(IntakeQuestion.fromAharaVihara(question),
+            IntakeQuestion nextQuestion = conversationalWording(
+                    IntakeQuestion.fromAharaVihara(question),
+                    IntakeQuestion.AHARA_VIHARA_SECTION,
+                    question.parameter().name(),
+                    answer,
+                    result,
+                    displayed);
+            return new ClinicalIntakeResponse(nextQuestion,
                     DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
         }
         Long userId = principal != null ? principal.getId() : null;
         CompletedCase completedCase = reviewStore.register(result);
         casePersistence.save(completedCase, userId);
         return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true, redFlags, urgency, completedCase.id());
+    }
+
+    /**
+     * Records the full clinical truth for one answered step: the canonical
+     * question/objective, the wording that was actually displayed, its source
+     * (AI or deterministic), and the patient's verbatim answer.
+     */
+    private void recordAnswered(IntakeQuestion canonical,
+                                String answer,
+                                Map<String, DisplayedQuestion> displayed,
+                                ClinicalConversationResult result) {
+        DisplayedQuestion shown = displayed.remove(canonical.id());
+        if (shown == null) {
+            shown = new DisplayedQuestion(canonical.text(), QuestionSource.DETERMINISTIC);
+        }
+        result.record(ClinicalAnswer.from(canonical, shown.text(), answer, shown.source()));
+    }
+
+    /**
+     * Lets a validated AI provider phrase the next deterministic question
+     * naturally (or clarify the latest answer), always within the deterministic
+     * objective. The question id, section, type, and ordering always come from
+     * the deterministic planner; only the display text may differ. When AI is
+     * unavailable or its output is rejected, the canonical deterministic text is
+     * used unchanged. The resulting wording and source are remembered for the
+     * next step so the clinical record reflects exactly what was shown.
+     */
+    private IntakeQuestion conversationalWording(IntakeQuestion deterministic,
+                                                 String sectionName,
+                                                 String targetTopic,
+                                                 String latestAnswer,
+                                                 ClinicalConversationResult result,
+                                                 Map<String, DisplayedQuestion> displayed) {
+        NextQuestionWording wording = aiConversationService.nextQuestionWording(
+                sectionName, targetTopic, deterministic.text(), latestAnswer, result.all(), "en");
+        IntakeQuestion shown = deterministic;
+        QuestionSource source = QuestionSource.DETERMINISTIC;
+        if (wording.source() == NextQuestionSource.AI_GENERATED) {
+            shown = new IntakeQuestion(deterministic.id(), deterministic.section(), deterministic.type(),
+                    wording.text(), deterministic.required(), deterministic.order());
+            source = QuestionSource.AI_GENERATED;
+        }
+        displayed.put(shown.id(), new DisplayedQuestion(shown.text(), source));
+        return shown;
+    }
+
+    /** Wording actually shown to the patient for one question, and its source. */
+    private record DisplayedQuestion(String text, QuestionSource source) {
     }
 }

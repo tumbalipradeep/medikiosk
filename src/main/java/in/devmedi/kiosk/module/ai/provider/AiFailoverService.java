@@ -69,4 +69,17 @@ public class AiFailoverService {
     public List<String> getFailoverOrder() {
         return failoverOrder;
     }
+
+    /**
+     * @return true when at least one provider is enabled and could be attempted.
+     *         Safe to call without contacting any provider.
+     */
+    public boolean hasEnabledProviders() {
+        for (ClinicalAiProvider provider : orderedProviders) {
+            if (provider.isEnabled()) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

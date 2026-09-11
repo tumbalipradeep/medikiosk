@@ -31,6 +31,7 @@ public class ClinicalSummaryBuilder {
     public static final String DASHAVIDHA_SECTION_NAME = "Dashavidha Pariksha";
     public static final String AHARA_VIHARA_SECTION_NAME = "Ahara-Vihara";
 
+    /** Default {@code OTHER} bucket for sections the builder does not recognize. */
     private static final String OTHER_PLACEHOLDER = "Other";
 
     /**
@@ -53,7 +54,7 @@ public class ClinicalSummaryBuilder {
                 ClinicalSummaryEntry entry = new ClinicalSummaryEntry(
                         answer.questionId(),
                         answer.questionType(),
-                        answer.questionText(),
+                        displayedQuestionText(answer),
                         answer.answer());
                 buckets.computeIfAbsent(sectionName(answer.section()), ignored -> new ArrayList<>())
                         .add(entry);
@@ -64,6 +65,15 @@ public class ClinicalSummaryBuilder {
                 .map(entry -> new ClinicalSummarySection(entry.getKey(), List.copyOf(entry.getValue())))
                 .toList();
         return new ClinicalSummary(sections, answeredCount);
+    }
+
+    /**
+     * The wording actually shown to the patient (may be AI-rephrased), falling
+     * back to the canonical deterministic text when no displayed wording exists.
+     */
+    private static String displayedQuestionText(ClinicalAnswer answer) {
+        String displayed = answer.displayedQuestionText();
+        return displayed == null || displayed.isBlank() ? answer.questionText() : displayed;
     }
 
     /**
