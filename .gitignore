@@ -13,3 +13,5 @@ target/
 logs/
 .heroku/
 .aider*
+# Patient clinical document storage (local filesystem, generated binaries)
+upload/

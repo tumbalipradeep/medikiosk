@@ -15,16 +15,15 @@ import java.util.UUID;
  *
  * @param id     stable identifier for the completed case
  * @param result the completed clinical conversation
+ * @param userId owning patient user id, or {@code null} when not linked
  */
-public record CompletedCase(String id, ClinicalConversationResult result) {
+public record CompletedCase(String id, ClinicalConversationResult result, Long userId) {
 
-    /**
-     * Creates a completed case with a fresh, unique, stable id.
-     *
-     * @param result the completed clinical conversation
-     * @return a new completed case with its own identity
-     */
     public static CompletedCase withNewId(ClinicalConversationResult result) {
-        return new CompletedCase("case-" + UUID.randomUUID(), result);
+        return new CompletedCase("case-" + UUID.randomUUID(), result, null);
+    }
+
+    public static CompletedCase withNewId(ClinicalConversationResult result, Long userId) {
+        return new CompletedCase("case-" + UUID.randomUUID(), result, userId);
     }
 }

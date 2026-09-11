@@ -89,6 +89,28 @@
         <div class="d-flex gap-2 mt-3">
             <a th:href="@{/patient/home}" class="btn btn-outline-secondary btn-sm">Back to Home</a>
         </div>
+
+        <div id="documentUploadSection" class="card shadow-sm d-none">
+            <div class="card-header bg-white">
+                <h2 class="h5 fw-bold mb-0 medikiosk-title">Upload Clinical Documents</h2>
+                <p class="small text-muted mb-0">Attach reports or scans (PDF, JPEG, PNG &middot; max 10 MB) for your physician to review.</p>
+            </div>
+            <div class="card-body">
+                <form id="documentUploadForm" class="d-flex gap-2">
+                    <input id="documentFileInput" type="file" class="form-control"
+                           accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                           aria-label="Choose a clinical document to upload">
+                    <button id="documentUploadButton" type="button" class="btn btn-primary text-nowrap">Upload</button>
+                </form>
+                <div id="documentUploadFeedback" class="mt-2 small d-none"></div>
+                <div class="mt-3">
+                    <h3 class="h6 fw-semibold mb-2">Uploaded documents</h3>
+                    <div id="documentList" class="list-group small">
+                        <div class="text-muted py-1">No documents uploaded yet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 

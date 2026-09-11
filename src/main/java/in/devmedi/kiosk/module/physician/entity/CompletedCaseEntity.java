@@ -2,7 +2,10 @@ package in.devmedi.kiosk.module.physician.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -24,6 +27,10 @@ public class CompletedCaseEntity {
     @Column(name = "case_id", nullable = false, length = 64)
     private String caseId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private in.devmedi.kiosk.module.auth.entity.User user;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -43,6 +50,14 @@ public class CompletedCaseEntity {
 
     public String getCaseId() {
         return caseId;
+    }
+
+    public in.devmedi.kiosk.module.auth.entity.User getUser() {
+        return user;
+    }
+
+    public void setUser(in.devmedi.kiosk.module.auth.entity.User user) {
+        this.user = user;
     }
 
     public Instant getCreatedAt() {

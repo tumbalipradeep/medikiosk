@@ -13,3 +13,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+medikiosk:
+  documents:
+    upload-dir: ${java.io.tmpdir}/medikiosk-test-documents

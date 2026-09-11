@@ -1,6 +1,8 @@
 package in.devmedi.kiosk;
 
+import com.jayway.jsonpath.JsonPath;
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
+import in.devmedi.kiosk.module.document.service.ClinicalDocumentService;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
@@ -11,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -21,6 +24,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -237,6 +241,57 @@ class PhysicianReviewControllerIntegrationTests {
         MockHttpSession session = login("patient", "patient123");
         mockMvc.perform(get("/physician/review").session(session))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void intakeCompletionResponseCarriesTheCaseIdentity() throws Exception {
+        MockHttpSession patient = login("patient", "patient123");
+        startConversation(patient);
+        answerIds(patient, List.of(
+                "chief_complaint_symptom",
+                "hpi_onset",
+                "hpi_provocation_palliation",
+                "hpi_quality",
+                "hpi_region_radiation",
+                "hpi_severity",
+                "hpi_timing_duration"), ORDINARY);
+        answerIds(patient, DASHAVIDHA_IDS, ORDINARY);
+        answerIds(patient, AHARA_VIHARA_IDS.subList(0, AHARA_VIHARA_IDS.size() - 1), ORDINARY);
+
+        MvcResult result = mockMvc.perform(post("/patient/intake/conversation/answer")
+                        .session(patient)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"questionId\":\"ahara_vihara_habits\",\"answer\":\"daily walks\"}")
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completed").value(true))
+                .andReturn();
+        String returnedCaseId = JsonPath.read(result.getResponse().getContentAsString(), "$.caseId");
+
+        String registeredCaseId = reviewStore.latest().orElseThrow().id();
+        assertThat(returnedCaseId).isEqualTo(registeredCaseId);
+        assertThat(returnedCaseId).startsWith("case-");
+    }
+
+    @Test
+    void physicianReviewShowsAttachedDocumentsMetadata() throws Exception {
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+        String caseId = reviewStore.latest().orElseThrow().id();
+
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(new MockMultipartFile("file", "xray-report.pdf", "application/pdf",
+                                new byte[]{0x25, 0x50, 0x44, 0x46, 1}))
+                        .session(patient)
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Clinical Documents")))
+                .andExpect(content().string(containsString("xray-report.pdf")))
+                .andExpect(content().string(containsString("application/pdf")));
     }
 
     @Test

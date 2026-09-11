@@ -1,5 +1,6 @@
 package in.devmedi.kiosk;
 
+import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalAnswer;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalConversationResult;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
@@ -18,6 +19,9 @@ class CompletedCasePersistenceServiceIntegrationTests {
 
     @Autowired
     private CompletedCasePersistenceService persistence;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @BeforeEach
     void clearPersistedData() {
@@ -118,7 +122,7 @@ class CompletedCasePersistenceServiceIntegrationTests {
         persistence.save(original);
 
         ClinicalConversationResult updatedResult = buildResult(2);
-        CompletedCase replaced = new CompletedCase(original.id(), updatedResult);
+        CompletedCase replaced = new CompletedCase(original.id(), updatedResult, null);
         persistence.save(replaced);
 
         CompletedCase loaded = persistence.findByCaseId(original.id()).orElseThrow();
@@ -134,5 +138,24 @@ class CompletedCasePersistenceServiceIntegrationTests {
         persistence.deleteAll();
 
         assertThat(persistence.findLatest()).isEmpty();
+    }
+
+    @Test
+    void ownerUserIdIsPersistedAndReloaded() {
+        Long userId = userRepository.findByUsername("patient").orElseThrow().getId();
+        CompletedCase completed = CompletedCase.withNewId(buildResult(2), userId);
+        persistence.save(completed, userId);
+
+        CompletedCase loaded = persistence.findByCaseId(completed.id()).orElseThrow();
+        assertThat(loaded.userId()).isEqualTo(userId);
+    }
+
+    @Test
+    void caseWithoutOwnerKeepsUserIdNull() {
+        CompletedCase completed = CompletedCase.withNewId(buildResult(2));
+        persistence.save(completed);
+
+        CompletedCase loaded = persistence.findByCaseId(completed.id()).orElseThrow();
+        assertThat(loaded.userId()).isNull();
     }
 }

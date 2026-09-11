@@ -1,5 +1,7 @@
 package in.devmedi.kiosk.module.physician.service;
 
+import in.devmedi.kiosk.module.auth.entity.User;
+import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalAnswer;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalConversationResult;
 import in.devmedi.kiosk.module.physician.entity.CompletedCaseAnswerEntity;
@@ -27,24 +29,30 @@ public class CompletedCasePersistenceService {
 
     private final CompletedCaseRepository completedCaseRepository;
     private final CompletedCaseAnswerRepository answerRepository;
+    private final UserRepository userRepository;
 
     public CompletedCasePersistenceService(CompletedCaseRepository completedCaseRepository,
-                                           CompletedCaseAnswerRepository answerRepository) {
+                                           CompletedCaseAnswerRepository answerRepository,
+                                           UserRepository userRepository) {
         this.completedCaseRepository = completedCaseRepository;
         this.answerRepository = answerRepository;
+        this.userRepository = userRepository;
     }
 
-    /**
-     * Persists a completed case under its stable identity, along with all of
-     * its captured answers in answering order. If the case id already exists it
-     * is replaced, keeping the id stable and the answers current.
-     *
-     * @param completed the completed case to persist
-     */
     @Transactional
     public void save(CompletedCase completed) {
+        save(completed, null);
+    }
+
+    @Transactional
+    public void save(CompletedCase completed, Long userId) {
         CompletedCaseEntity caseEntity = completedCaseRepository.findByCaseId(completed.id())
                 .orElseGet(() -> new CompletedCaseEntity(completed.id()));
+
+        if (userId != null && caseEntity.getUser() == null) {
+            userRepository.findById(userId).ifPresent(caseEntity::setUser);
+        }
+
         completedCaseRepository.saveAndFlush(caseEntity);
 
         List<CompletedCaseAnswerEntity> oldAnswers =
@@ -60,30 +68,17 @@ public class CompletedCasePersistenceService {
         }
     }
 
-    /**
-     * @return the most recently persisted completed case, fully reconstructed
-     * in answering order, if any
-     */
     @Transactional(readOnly = true)
     public Optional<CompletedCase> findLatest() {
         return completedCaseRepository.findTopByOrderByCreatedAtDesc()
                 .flatMap(entity -> loadByCaseId(entity.getCaseId()));
     }
 
-    /**
-     * Loads one persisted completed case by its stable id.
-     *
-     * @param caseId the stable case identity
-     * @return the reconstructed completed case, if present
-     */
     @Transactional(readOnly = true)
     public Optional<CompletedCase> findByCaseId(String caseId) {
         return loadByCaseId(caseId);
     }
 
-    /**
-     * Deletes all persisted completed cases (used by tests and fresh starts).
-     */
     @Transactional
     public void deleteAll() {
         answerRepository.deleteAllInBatch();
@@ -98,7 +93,8 @@ public class CompletedCasePersistenceService {
             for (CompletedCaseAnswerEntity answerEntity : answerEntities) {
                 result.record(answerEntity.toClinicalAnswer());
             }
-            return new CompletedCase(entity.getCaseId(), result);
+            Long userId = entity.getUser() != null ? entity.getUser().getId() : null;
+            return new CompletedCase(entity.getCaseId(), result, userId);
         });
     }
 }

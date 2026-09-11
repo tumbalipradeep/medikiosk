@@ -18,10 +18,12 @@ import java.util.List;
  * @param completed whether the clinical intake sequence is finished
  * @param redFlags  zero or more detected red flags (deterministic)
  * @param urgency   overall urgency across all detected red flags
+ * @param caseId    the completed case identity, present only when {@code completed} is true
  */
 public record ClinicalIntakeResponse(IntakeQuestion question,
                                      DialogueState state,
                                      boolean completed,
                                      List<RedFlag> redFlags,
-                                     RedFlagSeverity urgency) {
+                                     RedFlagSeverity urgency,
+                                     String caseId) {
 }

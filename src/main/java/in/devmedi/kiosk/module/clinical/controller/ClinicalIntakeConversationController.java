@@ -1,5 +1,6 @@
 package in.devmedi.kiosk.module.clinical.controller;
 
+import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
 import in.devmedi.kiosk.module.clinical.ayush.AharaViharaQuestion;
 import in.devmedi.kiosk.module.clinical.ayush.DashavidhaQuestion;
 import in.devmedi.kiosk.module.clinical.ayush.AharaViharaQuestionPlanner;
@@ -20,6 +21,7 @@ import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -93,13 +95,14 @@ public class ClinicalIntakeConversationController {
     public ClinicalIntakeResponse start(HttpSession session) {
         session.setAttribute(RESULT_ATTRIBUTE, new ClinicalConversationResult());
         IntakeQuestion first = IntakeQuestion.fromClinical(questionPlanner.firstQuestion());
-        return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false, List.of(), RedFlagSeverity.NONE);
+        return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false, List.of(), RedFlagSeverity.NONE, null);
     }
 
     @PostMapping("/answer")
     @ResponseStatus(HttpStatus.OK)
     public ClinicalIntakeResponse answer(@RequestBody ClinicalConversationAnswerRequest request,
-                                         HttpSession session) {
+                                         HttpSession session,
+                                         @AuthenticationPrincipal ApplicationUserDetails principal) {
         if (request == null || request.questionId() == null || request.questionId().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "questionId is required");
         }
@@ -113,7 +116,7 @@ public class ClinicalIntakeConversationController {
             return handleDashavidhaAnswer(questionId, request.answer(), result);
         }
         if (aharaViharaQuestionIds.contains(questionId)) {
-            return handleAharaViharaAnswer(questionId, request.answer(), result);
+            return handleAharaViharaAnswer(questionId, request.answer(), result, principal);
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown question id: " + questionId);
     }
@@ -143,12 +146,12 @@ public class ClinicalIntakeConversationController {
         if (next.isPresent()) {
             ClinicalQuestion question = next.get();
             return new ClinicalIntakeResponse(IntakeQuestion.fromClinical(question),
-                    DialogueState.IN_PROGRESS, false, redFlags, urgency);
+                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
         }
 
         DashavidhaQuestion firstDashavidha = dashavidhaQuestionPlanner.firstQuestion();
         return new ClinicalIntakeResponse(IntakeQuestion.fromDashavidha(firstDashavidha),
-                DialogueState.IN_PROGRESS, false, redFlags, urgency);
+                DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
     }
 
     /**
@@ -167,12 +170,12 @@ public class ClinicalIntakeConversationController {
         if (next.isPresent()) {
             DashavidhaQuestion question = next.get();
             return new ClinicalIntakeResponse(IntakeQuestion.fromDashavidha(question),
-                    DialogueState.IN_PROGRESS, false, redFlags, urgency);
+                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
         }
 
         AharaViharaQuestion firstAharaVihara = aharaViharaQuestionPlanner.firstQuestion();
         return new ClinicalIntakeResponse(IntakeQuestion.fromAharaVihara(firstAharaVihara),
-                DialogueState.IN_PROGRESS, false, redFlags, urgency);
+                DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
     }
 
     /**
@@ -180,7 +183,8 @@ public class ClinicalIntakeConversationController {
      * whole intake conversation is complete.
      */
     private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String answer,
-                                                           ClinicalConversationResult result) {
+                                                           ClinicalConversationResult result,
+                                                           ApplicationUserDetails principal) {
         AharaViharaQuestion answered = aharaViharaQuestionPlanner.question(questionId);
         result.record(ClinicalAnswer.from(IntakeQuestion.fromAharaVihara(answered), answer));
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
@@ -190,10 +194,11 @@ public class ClinicalIntakeConversationController {
         if (next.isPresent()) {
             AharaViharaQuestion question = next.get();
             return new ClinicalIntakeResponse(IntakeQuestion.fromAharaVihara(question),
-                    DialogueState.IN_PROGRESS, false, redFlags, urgency);
+                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
         }
+        Long userId = principal != null ? principal.getId() : null;
         CompletedCase completedCase = reviewStore.register(result);
-        casePersistence.save(completedCase);
-        return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true, redFlags, urgency);
+        casePersistence.save(completedCase, userId);
+        return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true, redFlags, urgency, completedCase.id());
     }
 }

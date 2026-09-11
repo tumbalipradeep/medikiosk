@@ -48,6 +48,7 @@
         var currentQuestionId = null;
         var conversationActive = true;
         var inFlight = false;
+        var currentCaseId = null;
 
         function csrfHeaderName() {
             var meta = document.querySelector('meta[name="_csrf_header"]');
@@ -151,6 +152,7 @@
                 appendUrgentWarning(data.redFlags);
             }
             if (data.completed || !data.question) {
+                currentCaseId = data.caseId || null;
                 completeConversation();
             } else {
                 showQuestion(data.question);
@@ -164,6 +166,9 @@
             input.disabled = true;
             sendButton.disabled = true;
             updatePlaceholder();
+            if (currentCaseId) {
+                showDocumentUpload();
+            }
         }
 
         function startConversation() {
@@ -262,6 +267,143 @@
             btn.classList.toggle('btn-outline-primary', active);
             hint.textContent = active ? 'Text-to-speech is coming in a later checkpoint.' : '';
         });
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) {
+                return bytes + ' B';
+            }
+            if (bytes < 1024 * 1024) {
+                return (bytes / 1024).toFixed(1) + ' KB';
+            }
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function showUploadFeedback(message, isError) {
+            var feedback = document.getElementById('documentUploadFeedback');
+            feedback.classList.remove('d-none', 'text-success', 'text-danger');
+            feedback.classList.add(isError ? 'text-danger' : 'text-success');
+            feedback.textContent = message;
+        }
+
+        function loadDocuments() {
+            if (!currentCaseId) {
+                return;
+            }
+            fetch('/patient/cases/' + encodeURIComponent(currentCaseId) + '/documents', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken()
+                }
+            }).then(function (response) {
+                return response.json();
+            }).then(function (docs) {
+                var container = document.getElementById('documentList');
+                container.innerHTML = '';
+                if (!docs || docs.length === 0) {
+                    var empty = document.createElement('div');
+                    empty.className = 'text-muted py-1';
+                    empty.textContent = 'No documents uploaded yet.';
+                    container.appendChild(empty);
+                    return;
+                }
+                docs.forEach(function (doc) {
+                    var item = document.createElement('div');
+                    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    var info = document.createElement('div');
+                    var name = document.createElement('div');
+                    name.className = 'fw-semibold';
+                    name.textContent = doc.originalFilename;
+                    var meta = document.createElement('div');
+                    meta.className = 'text-muted small';
+                    meta.textContent = doc.contentType + ' \u00b7 ' + formatFileSize(doc.fileSize);
+                    info.appendChild(name);
+                    info.appendChild(meta);
+                    var del = document.createElement('button');
+                    del.type = 'button';
+                    del.className = 'btn btn-sm btn-outline-danger';
+                    del.textContent = 'Remove';
+                    del.addEventListener('click', function () {
+                        fetch('/patient/cases/' + encodeURIComponent(currentCaseId) + '/documents/'
+                            + encodeURIComponent(doc.documentId), {
+                            method: 'DELETE',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': csrfToken()
+                            }
+                        }).then(function (response) {
+                            if (response.ok) {
+                                loadDocuments();
+                            } else {
+                                showUploadFeedback('Could not remove the document.', true);
+                            }
+                        });
+                    });
+                    item.appendChild(info);
+                    item.appendChild(del);
+                    container.appendChild(item);
+                });
+            }).catch(function () {
+                showUploadFeedback('Could not load uploaded documents.', true);
+            });
+        }
+
+        function showDocumentUpload() {
+            var section = document.getElementById('documentUploadSection');
+            if (!section) {
+                return;
+            }
+            section.classList.remove('d-none');
+            loadDocuments();
+        }
+
+        function uploadDocument() {
+            var fileInput = document.getElementById('documentFileInput');
+            var button = document.getElementById('documentUploadButton');
+            var file = fileInput.files[0];
+            if (!file || !currentCaseId) {
+                showUploadFeedback('Please choose a file first.', true);
+                return;
+            }
+            var formData = new FormData();
+            formData.append('file', file);
+            button.disabled = true;
+            showUploadFeedback('Uploading \u2026', false);
+            fetch('/patient/cases/' + encodeURIComponent(currentCaseId) + '/documents', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken()
+                },
+                body: formData
+            }).then(function (response) {
+                return response.json().then(function (body) {
+                    return {status: response.status, body: body};
+                });
+            }).then(function (result) {
+                if (result.status === 200) {
+                    fileInput.value = '';
+                    showUploadFeedback('Document uploaded successfully.', false);
+                    loadDocuments();
+                } else {
+                    showUploadFeedback(result.body && result.body.error ? result.body.error : 'Upload failed.', true);
+                }
+            }).catch(function () {
+                showUploadFeedback('Upload failed. Please try again.', true);
+            }).finally(function () {
+                button.disabled = false;
+            });
+        }
+
+        var uploadButton = document.getElementById('documentUploadButton');
+        if (uploadButton) {
+            uploadButton.addEventListener('click', uploadDocument);
+        }
+        var fileInput = document.getElementById('documentFileInput');
+        if (fileInput) {
+            fileInput.addEventListener('change', function () {
+                document.getElementById('documentUploadFeedback').classList.add('d-none');
+            });
+        }
 
         startConversation();
     });
