@@ -1,6 +1,7 @@
 package in.devmedi.kiosk;
 
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
+import in.devmedi.kiosk.module.clinical.dialogue.AnswerSource;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalAnswer;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalConversationResult;
 import in.devmedi.kiosk.module.clinical.dialogue.QuestionSource;
@@ -93,6 +94,7 @@ class CompletedCasePersistenceServiceIntegrationTests {
         assertThat(loaded.questionText()).isEqualTo("Describe your main problem");
         assertThat(loaded.displayedQuestionText()).isEqualTo("Describe your main problem");
         assertThat(loaded.questionSource()).isEqualTo(QuestionSource.DETERMINISTIC);
+        assertThat(loaded.answerSource()).isEqualTo(AnswerSource.TEXT);
         assertThat(loaded.answer()).isEqualTo("Throbbing headache");
     }
 
@@ -112,6 +114,50 @@ class CompletedCasePersistenceServiceIntegrationTests {
         assertThat(loaded.displayedQuestionText()).isEqualTo("AI phrase: When did it first start?");
         assertThat(loaded.questionSource()).isEqualTo(QuestionSource.AI_GENERATED);
         assertThat(loaded.answer()).isEqualTo("Three days ago");
+    }
+
+    @Test
+    void voiceAnswerSourceSurvivesPersistenceAndReload() {
+        ClinicalConversationResult result = new ClinicalConversationResult();
+        result.record(new ClinicalAnswer("chief_complaint_symptom", "CHIEF_COMPLAINT", "SYMPTOM",
+                "Describe your main problem", "Describe your main problem",
+                "I have a dull ache", QuestionSource.DETERMINISTIC, AnswerSource.VOICE));
+        CompletedCase completed = CompletedCase.withNewId(result);
+        persistence.save(completed);
+
+        ClinicalAnswer loaded = persistence.findByCaseId(completed.id()).orElseThrow()
+                .result().all().getFirst();
+        assertThat(loaded.answer()).isEqualTo("I have a dull ache");
+        assertThat(loaded.answerSource()).isEqualTo(AnswerSource.VOICE);
+    }
+
+    @Test
+    void answerLanguageSurvivesPersistenceAndReload() {
+        ClinicalConversationResult result = new ClinicalConversationResult();
+        result.record(new ClinicalAnswer("chief_complaint_symptom", "CHIEF_COMPLAINT", "SYMPTOM",
+                "Describe your main problem", "Describe your main problem",
+                "ఎదిమేడబ్బు", QuestionSource.DETERMINISTIC, AnswerSource.VOICE, "te-IN"));
+        CompletedCase completed = CompletedCase.withNewId(result);
+        persistence.save(completed);
+
+        ClinicalAnswer loaded = persistence.findByCaseId(completed.id()).orElseThrow()
+                .result().all().getFirst();
+        assertThat(loaded.answer()).isEqualTo("ఎదిమేడబ్బు");
+        assertThat(loaded.answerSource()).isEqualTo(AnswerSource.VOICE);
+        assertThat(loaded.language()).isEqualTo("te-IN");
+    }
+
+    @Test
+    void answersWithoutAnExplicitLanguageDefaultToEnglishOnReload() {
+        ClinicalConversationResult result = new ClinicalConversationResult();
+        result.record(new ClinicalAnswer("hpi_onset", "HISTORY_OF_PRESENT_ILLNESS", "ONSET",
+                "When did it first start?", "Three days ago"));
+        CompletedCase completed = CompletedCase.withNewId(result);
+        persistence.save(completed);
+
+        ClinicalAnswer loaded = persistence.findByCaseId(completed.id()).orElseThrow()
+                .result().all().getFirst();
+        assertThat(loaded.language()).isEqualTo(ClinicalAnswer.DEFAULT_LANGUAGE);
     }
 
     @Test

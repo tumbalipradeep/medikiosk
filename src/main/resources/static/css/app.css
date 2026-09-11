@@ -100,3 +100,43 @@ body {
         max-width: 90%;
     }
 }
+
+/* Voice input + Listen controls */
+button[data-state="listening"] {
+    animation: medi-kiosk-pulse 1.2s ease-in-out infinite;
+}
+
+button[data-state="processing"] {
+    animation: medi-kiosk-pulse 1.4s ease-in-out infinite;
+    opacity: 0.8;
+}
+
+button[data-state="error"] {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+button[data-state="success"] {
+    border-color: #198754;
+    color: #198754;
+}
+
+button[data-state="unavailable"] {
+    opacity: 0.55;
+}
+
+@keyframes medi-kiosk-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.35);
+    }
+    70% {
+        box-shadow: 0 0 0 0.45rem rgba(13, 110, 253, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    }
+}
+
+.ui-hint {
+    min-height: 1.25rem;
+}

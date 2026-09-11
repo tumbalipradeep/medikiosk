@@ -21,7 +21,8 @@
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="small text-muted">Current language</span>
-                    <span id="currentLangBadge" class="badge rounded-pill text-bg-primary" data-lang="en">English</span>
+                    <span id="currentLangBadge" class="badge rounded-pill text-bg-primary"
+                          th:data-lang="${currentLanguage.code}" th:text="${currentLanguage.label}">English</span>
                 </div>
             </div>
 
@@ -49,28 +50,28 @@
                     <div class="col-12 col-md-5 col-lg-4">
                         <label for="languageSelect" class="form-label small text-muted mb-1">Language</label>
                         <select id="languageSelect" class="form-select form-select-sm" aria-label="Choose conversation language">
-                            <option value="en" selected>English</option>
-                            <option value="hi">Hindi</option>
-                            <option value="te">Telugu</option>
-                            <option value="ta">Tamil</option>
-                            <option value="kn">Kannada</option>
+                            <option th:each="lang : ${supportedLanguages}"
+                                    th:value="${lang.code}"
+                                    th:data-bcp47="${lang.bcp47}"
+                                    th:selected="${lang.code == currentLanguage.code}"
+                                    th:text="${lang.label}">English</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-3 text-md-end">
                         <button id="speakQuestion" type="button" class="btn btn-sm btn-outline-secondary w-100"
-                                aria-pressed="false" data-ui-only="true">
-                            Speak question
+                                aria-pressed="false" title="Listen to the current question">
+                            Listen
                         </button>
                     </div>
                     <div class="col-12 col-md-4 text-md-end">
-                        <span class="small text-muted ui-hint" id="uiHint" aria-hidden="true">&nbsp;</span>
+                        <span class="small text-muted ui-hint" id="uiHint" aria-live="polite" aria-hidden="false">&nbsp;</span>
                     </div>
                 </div>
 
                 <div class="input-group">
                     <button id="micButton" type="button" class="btn btn-outline-primary" aria-pressed="false"
-                            data-ui-only="true" aria-label="Microphone (voice input coming soon)"
-                            title="Voice input coming soon">
+                            aria-label="Microphone voice input"
+                            title="Record your answer with the microphone">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
                              viewBox="0 0 16 16" aria-hidden="true">
                             <path d="M3.5 6.5a.5.5 0 0 0-1 0v1a5.5 5.5 0 0 0 4.5 5.43V15H4.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1H9v-2.07a5.5 5.5 0 0 0 4.5-5.43v-1a.5.5 0 0 0-1 0v1a4.5 4.5 0 0 1-9 0z"/>

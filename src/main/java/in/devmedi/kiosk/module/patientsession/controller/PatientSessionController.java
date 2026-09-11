@@ -1,7 +1,10 @@
 package in.devmedi.kiosk.module.patientsession.controller;
 
 import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
+import in.devmedi.kiosk.module.clinical.controller.PatientIntakeLanguageController;
 import in.devmedi.kiosk.module.patientsession.service.PatientSessionService;
+import in.devmedi.kiosk.module.voice.language.LanguageService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,9 +18,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class PatientSessionController {
 
     private final PatientSessionService patientSessionService;
+    private final LanguageService languageService;
 
-    public PatientSessionController(PatientSessionService patientSessionService) {
+    public PatientSessionController(PatientSessionService patientSessionService,
+                                    LanguageService languageService) {
         this.patientSessionService = patientSessionService;
+        this.languageService = languageService;
     }
 
     @PostMapping("/session/start")
@@ -37,8 +43,11 @@ public class PatientSessionController {
     }
 
     @GetMapping("/intake")
-    public String intake(@AuthenticationPrincipal ApplicationUserDetails user, Model model) {
+    public String intake(@AuthenticationPrincipal ApplicationUserDetails user, Model model, HttpSession session) {
         model.addAttribute("user", user);
+        model.addAttribute("supportedLanguages", languageService.supportedLanguages());
+        model.addAttribute("currentLanguage", languageService.resolve(
+                (String) session.getAttribute(PatientIntakeLanguageController.LANGUAGE_ATTRIBUTE)));
         return "patient/intake";
     }
 }

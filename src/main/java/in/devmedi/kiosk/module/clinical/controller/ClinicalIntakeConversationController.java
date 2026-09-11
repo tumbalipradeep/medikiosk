@@ -17,12 +17,14 @@ import in.devmedi.kiosk.module.clinical.dialogue.DialogueState;
 import in.devmedi.kiosk.module.clinical.dialogue.IntakeQuestion;
 import in.devmedi.kiosk.module.clinical.dialogue.QuestionPlanner;
 import in.devmedi.kiosk.module.clinical.dialogue.QuestionSource;
+import in.devmedi.kiosk.module.clinical.dialogue.AnswerSource;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlag;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagEvaluator;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagSeverity;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
+import in.devmedi.kiosk.module.voice.language.LanguageService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -78,6 +80,7 @@ public class ClinicalIntakeConversationController {
     private final CompletedCaseReviewStore reviewStore;
     private final CompletedCasePersistenceService casePersistence;
     private final AiConversationService aiConversationService;
+    private final LanguageService languageService;
 
     private final Set<String> clinicalQuestionIds;
     private final Set<String> dashavidhaQuestionIds;
@@ -89,7 +92,8 @@ public class ClinicalIntakeConversationController {
                                                 RedFlagEvaluator redFlagEvaluator,
                                                 CompletedCaseReviewStore reviewStore,
                                                 CompletedCasePersistenceService casePersistence,
-                                                AiConversationService aiConversationService) {
+                                                AiConversationService aiConversationService,
+                                                LanguageService languageService) {
         this.questionPlanner = questionPlanner;
         this.dashavidhaQuestionPlanner = dashavidhaQuestionPlanner;
         this.aharaViharaQuestionPlanner = aharaViharaQuestionPlanner;
@@ -97,6 +101,7 @@ public class ClinicalIntakeConversationController {
         this.reviewStore = reviewStore;
         this.casePersistence = casePersistence;
         this.aiConversationService = aiConversationService;
+        this.languageService = languageService;
         this.clinicalQuestionIds = questionPlanner.questions().stream()
                 .map(ClinicalQuestion::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -127,18 +132,31 @@ public class ClinicalIntakeConversationController {
         }
         ClinicalConversationResult result = resultFor(session);
         Map<String, DisplayedQuestion> displayed = displayedFor(session);
+        String language = resolvedLanguage(session).bcp47();
+        AnswerSource answerSource = AnswerSource.normalize(request.answerSource());
 
         String questionId = request.questionId();
         if (clinicalQuestionIds.contains(questionId)) {
-            return handleClinicalAnswer(questionId, request.answer(), result, displayed);
+            return handleClinicalAnswer(questionId, request.answer(), answerSource, language, result, displayed);
         }
         if (dashavidhaQuestionIds.contains(questionId)) {
-            return handleDashavidhaAnswer(questionId, request.answer(), result, displayed);
+            return handleDashavidhaAnswer(questionId, request.answer(), answerSource, language, result, displayed);
         }
         if (aharaViharaQuestionIds.contains(questionId)) {
-            return handleAharaViharaAnswer(questionId, request.answer(), result, displayed, principal);
+            return handleAharaViharaAnswer(questionId, request.answer(), answerSource, language, result, displayed, principal);
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown question id: " + questionId);
+    }
+
+    /**
+     * The patient language selected for the current intake session, resolving
+     * deterministically to English when no selection has been made. Language is
+     * presentation-layer state and never influences clinical progression.
+     */
+    private in.devmedi.kiosk.module.voice.language.SupportedLanguage resolvedLanguage(HttpSession session) {
+        String selected = (String) session.getAttribute(
+                in.devmedi.kiosk.module.clinical.controller.PatientIntakeLanguageController.LANGUAGE_ATTRIBUTE);
+        return languageService.resolve(selected);
     }
 
     private ClinicalConversationResult resultFor(HttpSession session) {
@@ -166,10 +184,12 @@ public class ClinicalIntakeConversationController {
      * rather than completing.
      */
     private ClinicalIntakeResponse handleClinicalAnswer(String questionId, String answer,
+                                                       AnswerSource answerSource,
+                                                       String language,
                                                        ClinicalConversationResult result,
                                                        Map<String, DisplayedQuestion> displayed) {
         ClinicalQuestion answered = questionPlanner.question(questionId);
-        recordAnswered(IntakeQuestion.fromClinical(answered), answer, displayed, result);
+        recordAnswered(IntakeQuestion.fromClinical(answered), answer, answerSource, language, displayed, result);
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answered, answer);
         RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
 
@@ -181,6 +201,7 @@ public class ClinicalIntakeConversationController {
                     answered.section().name(),
                     question.type().name(),
                     answer,
+                    language,
                     result,
                     displayed);
             return new ClinicalIntakeResponse(nextQuestion,
@@ -193,6 +214,7 @@ public class ClinicalIntakeConversationController {
                 IntakeQuestion.DASHAVIDHA_SECTION,
                 firstDashavidha.parameter().name(),
                 answer,
+                language,
                 result,
                 displayed);
         return new ClinicalIntakeResponse(nextQuestion,
@@ -204,11 +226,13 @@ public class ClinicalIntakeConversationController {
      * conversation transitions to the first Ahara-Vihara question rather than
      * completing.
      */
-    private ClinicalIntakeResponse handleDashavidhaAnswer(String questionId, String answer,
-                                                          ClinicalConversationResult result,
-                                                          Map<String, DisplayedQuestion> displayed) {
+private ClinicalIntakeResponse handleDashavidhaAnswer(String questionId, String answer,
+                                                         AnswerSource answerSource,
+                                                         String language,
+                                                         ClinicalConversationResult result,
+                                                         Map<String, DisplayedQuestion> displayed) {
         DashavidhaQuestion answered = dashavidhaQuestionPlanner.question(questionId);
-        recordAnswered(IntakeQuestion.fromDashavidha(answered), answer, displayed, result);
+        recordAnswered(IntakeQuestion.fromDashavidha(answered), answer, answerSource, language, displayed, result);
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
         RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
 
@@ -220,6 +244,7 @@ public class ClinicalIntakeConversationController {
                     IntakeQuestion.DASHAVIDHA_SECTION,
                     question.parameter().name(),
                     answer,
+                    language,
                     result,
                     displayed);
             return new ClinicalIntakeResponse(nextQuestion,
@@ -232,6 +257,7 @@ public class ClinicalIntakeConversationController {
                 IntakeQuestion.AHARA_VIHARA_SECTION,
                 firstAharaVihara.parameter().name(),
                 answer,
+                language,
                 result,
                 displayed);
         return new ClinicalIntakeResponse(nextQuestion,
@@ -242,12 +268,14 @@ public class ClinicalIntakeConversationController {
      * Advances within the Ahara-Vihara sequence. After the eighth parameter the
      * whole intake conversation is complete.
      */
-    private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String answer,
-                                                           ClinicalConversationResult result,
-                                                           Map<String, DisplayedQuestion> displayed,
-                                                           ApplicationUserDetails principal) {
+private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String answer,
+                                                         AnswerSource answerSource,
+                                                         String language,
+                                                         ClinicalConversationResult result,
+                                                         Map<String, DisplayedQuestion> displayed,
+                                                         ApplicationUserDetails principal) {
         AharaViharaQuestion answered = aharaViharaQuestionPlanner.question(questionId);
-        recordAnswered(IntakeQuestion.fromAharaVihara(answered), answer, displayed, result);
+        recordAnswered(IntakeQuestion.fromAharaVihara(answered), answer, answerSource, language, displayed, result);
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
         RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
 
@@ -259,6 +287,7 @@ public class ClinicalIntakeConversationController {
                     IntakeQuestion.AHARA_VIHARA_SECTION,
                     question.parameter().name(),
                     answer,
+                    language,
                     result,
                     displayed);
             return new ClinicalIntakeResponse(nextQuestion,
@@ -273,17 +302,20 @@ public class ClinicalIntakeConversationController {
     /**
      * Records the full clinical truth for one answered step: the canonical
      * question/objective, the wording that was actually displayed, its source
-     * (AI or deterministic), and the patient's verbatim answer.
+     * (AI or deterministic), the patient's verbatim answer, and the
+     * patient-facing language used for this step.
      */
     private void recordAnswered(IntakeQuestion canonical,
                                 String answer,
+                                AnswerSource answerSource,
+                                String language,
                                 Map<String, DisplayedQuestion> displayed,
                                 ClinicalConversationResult result) {
         DisplayedQuestion shown = displayed.remove(canonical.id());
         if (shown == null) {
             shown = new DisplayedQuestion(canonical.text(), QuestionSource.DETERMINISTIC);
         }
-        result.record(ClinicalAnswer.from(canonical, shown.text(), answer, shown.source()));
+        result.record(ClinicalAnswer.from(canonical, shown.text(), answer, shown.source(), answerSource, language));
     }
 
     /**
@@ -299,10 +331,11 @@ public class ClinicalIntakeConversationController {
                                                  String sectionName,
                                                  String targetTopic,
                                                  String latestAnswer,
+                                                 String language,
                                                  ClinicalConversationResult result,
                                                  Map<String, DisplayedQuestion> displayed) {
         NextQuestionWording wording = aiConversationService.nextQuestionWording(
-                sectionName, targetTopic, deterministic.text(), latestAnswer, result.all(), "en");
+                sectionName, targetTopic, deterministic.text(), latestAnswer, result.all(), language);
         IntakeQuestion shown = deterministic;
         QuestionSource source = QuestionSource.DETERMINISTIC;
         if (wording.source() == NextQuestionSource.AI_GENERATED) {

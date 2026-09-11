@@ -15,3 +15,16 @@ logs/
 .aider*
 # Patient clinical document storage (local filesystem, generated binaries)
 upload/
+# Secrets and credentials (defense-in-depth)
+.env
+*.env
+credentials/
+secrets/
+*.pem
+*.key
+*.p12
+*.jks
+id_rsa*
+# Editor/tool temp files
+*.tmp
+*~

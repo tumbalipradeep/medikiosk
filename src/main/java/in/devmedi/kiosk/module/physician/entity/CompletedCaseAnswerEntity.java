@@ -1,5 +1,6 @@
 package in.devmedi.kiosk.module.physician.entity;
 
+import in.devmedi.kiosk.module.clinical.dialogue.AnswerSource;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalAnswer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -61,6 +62,12 @@ public class CompletedCaseAnswerEntity {
     @Column(name = "question_source", nullable = false, length = 16)
     private String questionSource;
 
+    @Column(name = "answer_source", nullable = false, length = 8)
+    private String answerSource;
+
+    @Column(name = "answer_language", nullable = false, length = 16)
+    private String answerLanguage;
+
     @Column(nullable = false, length = 4000)
     private String answer;
 
@@ -85,6 +92,12 @@ public class CompletedCaseAnswerEntity {
         entity.questionSource = clinicalAnswer.questionSource() == null
                 ? in.devmedi.kiosk.module.clinical.dialogue.QuestionSource.DETERMINISTIC.name()
                 : clinicalAnswer.questionSource().name();
+        entity.answerSource = clinicalAnswer.answerSource() == null
+                ? AnswerSource.TEXT.name()
+                : clinicalAnswer.answerSource().name();
+        entity.answerLanguage = clinicalAnswer.language() == null
+                ? ClinicalAnswer.DEFAULT_LANGUAGE
+                : clinicalAnswer.language();
         entity.answer = clinicalAnswer.answer();
         return entity;
     }
@@ -102,7 +115,9 @@ public class CompletedCaseAnswerEntity {
                 in.devmedi.kiosk.module.clinical.dialogue.QuestionSource
                         .valueOf(questionSource == null
                                 ? in.devmedi.kiosk.module.clinical.dialogue.QuestionSource.DETERMINISTIC.name()
-                                : questionSource));
+                                : questionSource),
+                AnswerSource.valueOf(answerSource == null ? AnswerSource.TEXT.name() : answerSource),
+                answerLanguage == null ? ClinicalAnswer.DEFAULT_LANGUAGE : answerLanguage);
     }
 
     public Long getId() {
@@ -139,6 +154,14 @@ public class CompletedCaseAnswerEntity {
 
     public String getQuestionSource() {
         return questionSource;
+    }
+
+    public String getAnswerSource() {
+        return answerSource;
+    }
+
+    public String getAnswerLanguage() {
+        return answerLanguage;
     }
 
     public String getAnswer() {

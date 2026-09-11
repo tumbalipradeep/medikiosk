@@ -2,31 +2,31 @@
     'use strict';
 
     var LANGUAGES = {
-        en: {
+        'en-IN': {
             name: 'English',
             greeting: 'Hello! I can help you describe what has been troubling you. ' +
                 'Please tell me about your problem in your own words.',
             placeholder: 'Type your message...'
         },
-        hi: {
+        'hi-IN': {
             name: 'Hindi',
             greeting: 'नमस्ते! मैं आपकी समस्या समझने में मदद कर सकता हूँ। ' +
                 'कृपया अपनी समस्या अपने शब्दों में बताइए।',
             placeholder: 'अपना संदेश लिखिए...'
         },
-        te: {
+        'te-IN': {
             name: 'Telugu',
             greeting: 'నమస్కారం! మీ సమస్యను వివరించడంలో నేను సహాయపడగలను. ' +
                 'దయచేసి మీ సమస్యను మీ స్వంత మాటల్లో చెప్పండి.',
             placeholder: 'మీ సందేశాన్ని టైప్ చేయండి...'
         },
-        ta: {
+        'ta-IN': {
             name: 'Tamil',
             greeting: 'வணக்கம்! உங்கள் பிரச்சனையை விவரிக்க நான் உதவ முடியும். ' +
                 'தயவுசெய்து உங்கள் பிரச்சனையை உங்கள் வார்த்தைகளில் சொல்லுங்கள்.',
             placeholder: 'உங்கள் செய்தியைத் தட்டச்சு செய்க...'
         },
-        kn: {
+        'kn-IN': {
             name: 'Kannada',
             greeting: 'ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ವಿವರಿಸಲು ನಾನು ಸಹಾಯ ಮಾಡಬಹುದು. ' +
                 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ನಿಮ್ಮ ಮಾತುಗಳಲ್ಲಿ ಹೇಳಿ.',
@@ -43,12 +43,17 @@
         var chatWindow = document.getElementById('chatWindow');
         var chatMessages = document.getElementById('chatMessages');
         var hint = document.getElementById('uiHint');
+        var micButton = document.getElementById('micButton');
+        var speakButton = document.getElementById('speakQuestion');
 
-        var currentLang = 'en';
+        var currentLang = 'en-IN';
+        var currentBcp47 = 'en-IN';
         var currentQuestionId = null;
+        var currentDisplayedQuestionText = '';
         var conversationActive = true;
         var inFlight = false;
         var currentCaseId = null;
+        var voiceUsed = false;
 
         function csrfHeaderName() {
             var meta = document.querySelector('meta[name="_csrf_header"]');
@@ -72,6 +77,20 @@
             });
         }
 
+        function bcp47For(value) {
+            if (selector && selector.querySelector('option[value="' + value + '"]')) {
+                var option = selector.querySelector('option[value="' + value + '"]');
+                return option.getAttribute('data-bcp47') || value;
+            }
+            return value;
+        }
+
+        function setHint(message) {
+            if (hint) {
+                hint.textContent = message || '';
+            }
+        }
+
         function updatePlaceholder() {
             if (!conversationActive) {
                 input.placeholder = LANGUAGES[currentLang].name + ' · conversation complete';
@@ -81,14 +100,25 @@
         }
 
         function applyLanguage(lang) {
-            var cfg = LANGUAGES[lang] || LANGUAGES.en;
-            currentLang = lang;
-            badge.textContent = cfg.name;
-            badge.setAttribute('data-lang', lang);
+            currentLang = LANGUAGES[lang] ? lang : 'en-IN';
+            var resolved = LANGUAGES[currentLang];
+            currentBcp47 = bcp47For(currentLang);
+            badge.textContent = resolved.name;
+            badge.setAttribute('data-lang', currentLang);
             if (greeting) {
-                greeting.textContent = cfg.greeting;
+                greeting.textContent = resolved.greeting;
             }
             updatePlaceholder();
+        }
+
+        function persistLanguage(lang) {
+            return postJson('/patient/intake/language', {language: lang})
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('language update failed');
+                    }
+                    return response.json();
+                });
         }
 
         function scrollToBottom() {
@@ -120,6 +150,7 @@
             }
             appendMessage('assistant', text);
             currentQuestionId = question.id;
+            currentDisplayedQuestionText = text;
             updatePlaceholder();
             if (input) {
                 input.focus();
@@ -162,6 +193,8 @@
         function completeConversation() {
             conversationActive = false;
             currentQuestionId = null;
+            currentDisplayedQuestionText = '';
+            stopListening();
             appendMessage('assistant', 'The intake conversation is complete. Thank you.');
             input.disabled = true;
             sendButton.disabled = true;
@@ -201,13 +234,16 @@
             input.disabled = true;
 
             var answeredId = currentQuestionId;
+            var enteredByVoice = voiceUsed;
+            voiceUsed = false;
             appendMessage('patient', text);
             input.value = '';
             scrollToBottom();
 
             postJson('/patient/intake/conversation/answer', {
                 questionId: answeredId,
-                answer: text
+                answer: text,
+                answerSource: enteredByVoice ? 'VOICE' : 'TEXT'
             })
                 .then(function (response) {
                     if (!response.ok) {
@@ -233,7 +269,11 @@
 
         if (selector) {
             selector.addEventListener('change', function () {
-                applyLanguage(selector.value);
+                var chosen = selector.value;
+                applyLanguage(chosen);
+                persistLanguage(chosen).catch(function () {
+                    setHint('Could not save the language selection on the server. Your conversation is unchanged.');
+                });
             });
             applyLanguage(selector.value);
         }
@@ -247,26 +287,326 @@
             }
         });
 
-        function uiOnlyToggle(id, action) {
-            document.getElementById(id).addEventListener('click', function () {
-                var pressed = this.getAttribute('aria-pressed') === 'true';
-                this.setAttribute('aria-pressed', pressed ? 'false' : 'true');
-                if (action) {
-                    action(this, !pressed);
+        /* ---------------- Voice input (server ASR) ---------------- */
+
+        var mediaRecorder = null;
+        var mediaStream = null;
+        var recordedChunks = [];
+        var recordedMimeType = null;
+        var recordingTimer = null;
+        var asrInFlight = false;
+
+        function micClass(state) {
+            micButton.classList.toggle('btn-primary', state === 'listening');
+            micButton.classList.toggle('btn-outline-primary', state !== 'listening');
+            micButton.classList.toggle('btn-outline-danger', state === 'error');
+            micButton.classList.toggle('btn-outline-success', state === 'success');
+            micButton.setAttribute('aria-pressed', state === 'listening' ? 'true' : 'false');
+            micButton.setAttribute('data-state', state);
+        }
+
+        function setMicError(message) {
+            micClass('error');
+            setHint(message);
+        }
+
+        function stopListening() {
+            asrInFlight = false;
+            if (recordingTimer) {
+                clearTimeout(recordingTimer);
+                recordingTimer = null;
+            }
+            if (mediaRecorder) {
+                try {
+                    mediaRecorder.onstop = null;
+                    mediaRecorder.stop();
+                } catch (ignored) {
+                    // stopping a recorder that already ended is safe to ignore
                 }
+                mediaRecorder = null;
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+                mediaStream = null;
+            }
+            recordedChunks = [];
+            micClass('idle');
+        }
+
+        function pickRecordMimeType() {
+            var candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+            for (var i = 0; i < candidates.length; i++) {
+                if (window.MediaRecorder.isTypeSupported(candidates[i])) {
+                    return candidates[i];
+                }
+            }
+            return null;
+        }
+
+        function attachRecordingStream(stream) {
+            mediaStream = stream;
+            recordedChunks = [];
+            recordedMimeType = pickRecordMimeType();
+            var options = recordedMimeType ? {mimeType: recordedMimeType} : undefined;
+            mediaRecorder = new MediaRecorder(stream, options);
+            mediaRecorder.ondataavailable = function (event) {
+                if (event.data && event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+            mediaRecorder.onstop = function () {
+                var blob = new Blob(recordedChunks, {type: recordedMimeType || 'audio/webm'});
+                recordedChunks = [];
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(function (track) {
+                        track.stop();
+                    });
+                    mediaStream = null;
+                }
+                mediaRecorder = null;
+                if (blob.size > 0) {
+                    uploadRecording(blob);
+                } else {
+                    micClass('idle');
+                    setHint('No audio was recorded. Talk again or type instead.');
+                }
+            };
+            mediaRecorder.start(250);
+            micClass('listening');
+            setHint('Listening in ' + LANGUAGES[currentLang].name +
+                ' \u2026 speak, then press the mic again to stop (max 30 seconds).');
+            recordingTimer = setTimeout(function () {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    setHint('Reached the 30-second limit. Transcribing \u2026');
+                    try {
+                        mediaRecorder.stop();
+                    } catch (ignored) {
+                        // recorder may have ended between the check and the stop
+                    }
+                }
+            }, 30000);
+        }
+
+        function startRecording() {
+            if (asrInFlight) {
+                return;
+            }
+            if (!conversationActive || !currentQuestionId) {
+                micClass('unavailable');
+                setHint('There is no question right now. You can keep typing.');
+                return;
+            }
+            if (!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                micClass('unavailable');
+                setHint('Voice input is not supported in this browser. You can keep typing.');
+                return;
+            }
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({audio: true})
+                .then(attachRecordingStream)
+                .catch(mapPermissionError);
+        }
+
+        function stopRecording() {
+            if (recordingTimer) {
+                clearTimeout(recordingTimer);
+                recordingTimer = null;
+            }
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                try {
+                    mediaRecorder.stop();
+                } catch (ignored) {
+                    // recorder may have already ended
+                }
+            } else {
+                micClass('idle');
+                setHint('Voice input stopped. You can type instead.');
+            }
+        }
+
+        function uploadRecording(blob) {
+            asrInFlight = true;
+            micButton.disabled = true;
+            micClass('processing');
+            setHint('Transcribing your recording \u2026');
+            var formData = new FormData();
+            formData.append('audio', blob, 'recording.webm');
+            formData.append('language', currentLang);
+            fetch('/patient/intake/voice/asr', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken()
+                },
+                body: formData
+            }).then(function (response) {
+                return response.json().then(function (body) {
+                    return {status: response.status, body: body};
+                });
+            }).then(function (result) {
+                var code = result.body && result.body.status;
+                if (result.status === 200 && code === 'TRANSCRIBED' && result.body.transcript) {
+                    voiceUsed = true;
+                    input.value = result.body.transcript;
+                    micClass('success');
+                    setHint('Transcribed. Review it, then press Send.');
+                    input.focus();
+                } else if (result.status === 200 && code === 'EMPTY') {
+                    micClass('idle');
+                    setHint('No speech was heard. Talk again or type.');
+                } else if (code === 'UNAVAILABLE') {
+                    micClass('unavailable');
+                    setHint('Voice input is unavailable right now. You can keep typing.');
+                } else if (code === 'UNSUPPORTED') {
+                    micClass('unavailable');
+                    setHint('Voice input does not support ' + LANGUAGES[currentLang].name +
+                        ' yet. You can keep typing.');
+                } else {
+                    micClass('error');
+                    setHint('Voice input failed. Try again or type instead.');
+                }
+            }).catch(function () {
+                micClass('error');
+                setHint('Voice input failed. Try again or type instead.');
+            }).finally(function () {
+                asrInFlight = false;
+                micButton.disabled = false;
             });
         }
 
-        uiOnlyToggle('micButton', function (btn, active) {
-            btn.classList.toggle('btn-primary', active);
-            btn.classList.toggle('btn-outline-primary', !active);
-            hint.textContent = active ? 'Voice input is coming in a later checkpoint.' : '';
-        });
+        function mapPermissionError(error) {
+            if (error && error.name === 'NotAllowedError') {
+                micClass('error');
+                setHint('Microphone permission was denied. Allow it in the browser to use voice, or type instead.');
+            } else if (error && error.name === 'NotFoundError') {
+                micClass('unavailable');
+                setHint('No microphone was found. You can keep typing.');
+            } else {
+                micClass('error');
+                setHint('Voice input could not start. You can keep typing.');
+            }
+        }
 
-        uiOnlyToggle('speakQuestion', function (btn, active) {
-            btn.classList.toggle('btn-outline-primary', active);
-            hint.textContent = active ? 'Text-to-speech is coming in a later checkpoint.' : '';
-        });
+        function toggleMic() {
+            if (asrInFlight) {
+                return;
+            }
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+                return;
+            }
+            startRecording();
+        }
+
+        if (micButton) {
+            if (!conversationActive) {
+                micClass('unavailable');
+            } else if (!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                micClass('unavailable');
+                setHint('Voice input is not supported in this browser. You can type instead.');
+            } else {
+                micClass('idle');
+                setHint('Press the microphone and speak to answer, or type instead.');
+            }
+            micButton.addEventListener('click', toggleMic);
+        }
+
+        /* ---------------- Text-to-speech (server TTS) ---------------- */
+
+        var currentAudio = null;
+        var speakInFlight = false;
+
+        function stopSpeaking() {
+            if (currentAudio) {
+                try {
+                    currentAudio.pause();
+                    currentAudio.src = '';
+                } catch (ignored) {
+                    // audio may already be stopped
+                }
+                currentAudio = null;
+            }
+            if (speakButton) {
+                speakButton.setAttribute('aria-pressed', 'false');
+            }
+        }
+
+        function playAudioBlob(blob) {
+            var url = URL.createObjectURL(blob);
+            stopSpeaking();
+            var audio = new Audio(url);
+            currentAudio = audio;
+            audio.onended = function () {
+                currentAudio = null;
+                speakButton.setAttribute('aria-pressed', 'false');
+                setHint('Played the question in ' + LANGUAGES[currentLang].name + '.');
+            };
+            audio.onerror = function () {
+                currentAudio = null;
+                speakButton.setAttribute('aria-pressed', 'false');
+                setHint('Reading aloud failed. You can read the question on screen.');
+            };
+            audio.play().then(function () {
+                speakButton.setAttribute('aria-pressed', 'true');
+                setHint('Playing the question in ' + LANGUAGES[currentLang].name + '.');
+            }).catch(function () {
+                currentAudio = null;
+                speakButton.setAttribute('aria-pressed', 'false');
+                setHint('The audio could not be played. You can read the question on screen.');
+            });
+        }
+
+        function speakCurrentQuestion() {
+            if (speakInFlight) {
+                return;
+            }
+            if (currentAudio) {
+                stopSpeaking();
+                setHint('Stopped.');
+                return;
+            }
+            if (!conversationActive || !currentDisplayedQuestionText) {
+                setHint('There is no question to read yet.');
+                return;
+            }
+            speakButton.disabled = true;
+            speakInFlight = true;
+            setHint('Getting the audio \u2026');
+            fetch('/patient/intake/voice/tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken()
+                },
+                body: JSON.stringify({text: currentDisplayedQuestionText, language: currentLang})
+            }).then(function (response) {
+                var contentType = response.headers.get('content-type') || '';
+                if (response.ok && contentType.indexOf('audio/') === 0) {
+                    return response.blob();
+                }
+                return response.json().then(function (body) {
+                    throw new Error(body && body.message ? body.message : 'reading aloud is unavailable');
+                });
+            }).then(function (blob) {
+                playAudioBlob(blob);
+            }).catch(function () {
+                speakButton.setAttribute('aria-pressed', 'false');
+                setHint('Reading aloud is unavailable right now. You can read the question on screen.');
+            }).finally(function () {
+                speakInFlight = false;
+                speakButton.disabled = false;
+            });
+        }
+
+        if (speakButton) {
+            speakButton.addEventListener('click', speakCurrentQuestion);
+        }
 
         function formatFileSize(bytes) {
             if (bytes < 1024) {

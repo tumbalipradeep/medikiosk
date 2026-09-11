@@ -75,3 +75,19 @@ medikiosk:
         base-url: https://openrouter.ai/api/v1
         timeout-ms: 12000
         max-tokens: 1024
+  asr-provider: unavailable
+  tts-provider: unavailable
+  bhashini:
+    # ASR/TTS provider activation for patient voice input and question reading.
+    # A real provider only engages when the switch is set to the provider name
+    # ("bhashini") AND its credentials are complete; otherwise the deterministic
+    # UNAVAILABLE fallback is used and the patient simply types. The switches
+    # come from MEDIKIOSK_ASR_PROVIDER / MEDIKIOSK_TTS_PROVIDER; Bhashini
+    # credentials arrive only as environment variables (MEDIKIOSK_BHASHINI_USER_ID,
+    # MEDIKIOSK_BHASHINI_API_KEY, MEDIKIOSK_BHASHINI_PIPELINE_ID) and are never
+    # stored in this file.
+    api-url: ${MEDIKIOSK_BHASHINI_API_URL:https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline}
+    asr-audio-format: wav
+    asr-sampling-rate: 16000
+    tts-audio-format: wav
+    tts-sampling-rate: 22050
