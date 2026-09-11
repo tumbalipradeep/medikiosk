@@ -15,19 +15,21 @@ package in.devmedi.kiosk.module.voice.language;
  */
 public enum SupportedLanguage {
 
-    ENGLISH("en-IN", "English", "en-IN"),
-    HINDI("hi-IN", "Hindi", "hi-IN"),
-    TELUGU("te-IN", "Telugu", "te-IN"),
-    TAMIL("ta-IN", "Tamil", "ta-IN"),
-    KANNADA("kn-IN", "Kannada", "kn-IN");
+    ENGLISH("en-IN", "English", "English", "en-IN"),
+    HINDI("hi-IN", "Hindi", "हिन्दी", "hi-IN"),
+    TELUGU("te-IN", "Telugu", "తెలుగు", "te-IN"),
+    TAMIL("ta-IN", "Tamil", "தமிழ்", "ta-IN"),
+    KANNADA("kn-IN", "Kannada", "ಕನ್ನಡ", "kn-IN");
 
     private final String code;
     private final String label;
+    private final String nativeName;
     private final String bcp47;
 
-    SupportedLanguage(String code, String label, String bcp47) {
+    SupportedLanguage(String code, String label, String nativeName, String bcp47) {
         this.code = code;
         this.label = label;
+        this.nativeName = nativeName;
         this.bcp47 = bcp47;
     }
 
@@ -39,6 +41,11 @@ public enum SupportedLanguage {
     /** Human-readable display label, safe for the patient UI. */
     public String label() {
         return label;
+    }
+
+    /** The language's name written in its own script (for example "हिन्दी"). */
+    public String nativeName() {
+        return nativeName;
     }
 
     /** BCP-47 language tag (for example for TTS voices or ASR language hints). */

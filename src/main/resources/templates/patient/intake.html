@@ -8,6 +8,7 @@
 <body class="bg-light d-flex flex-column min-vh-100">
 <meta name="_csrf" th:content="${_csrf.token}">
 <meta name="_csrf_header" th:content="${_csrf.headerName}">
+<meta name="completed-case" th:content="${completedCaseId}">
 <div th:replace="~{fragments/nav :: authnav}"></div>
 
 <main class="flex-grow-1 py-4">
@@ -27,6 +28,18 @@
             </div>
 
             <div class="card-body">
+                <div class="journey-progress mb-3" id="journeyStepper" aria-label="Conversation progress">
+                    <div class="progress-steps">
+                        <span class="progress-step" data-step="HISTORY">History</span>
+                        <span class="progress-step" data-step="DASHAVIDHA">AYUSH Assessment</span>
+                        <span class="progress-step" data-step="AHARA_VIHARA">Lifestyle</span>
+                        <span class="progress-step" data-step="REVIEW">Review</span>
+                    </div>
+                    <p class="small text-muted mb-0" id="progressText" role="status" aria-live="polite">
+                        0 of 25 answered
+                    </p>
+                </div>
+
                 <div id="chatWindow" class="chat-window" role="log" aria-live="polite" aria-atomic="false"
                      aria-label="Intake conversation">
                     <div id="chatMessages" class="chat-messages">
@@ -43,6 +56,8 @@
                         </div>
                     </div>
                 </div>
+
+                <p id="statusRegion" class="visually-hidden" role="status" aria-live="polite"></p>
             </div>
 
             <div class="card-footer bg-white">
@@ -53,8 +68,9 @@
                             <option th:each="lang : ${supportedLanguages}"
                                     th:value="${lang.code}"
                                     th:data-bcp47="${lang.bcp47}"
+                                    th:data-native="${lang.nativeName}"
                                     th:selected="${lang.code == currentLanguage.code}"
-                                    th:text="${lang.label}">English</option>
+                                    th:text="${lang.label + ' · ' + lang.nativeName}">English</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-3 text-md-end">
@@ -68,18 +84,18 @@
                     </div>
                 </div>
 
-                <div class="input-group">
+                <div class="input-group input-group-lg">
                     <button id="micButton" type="button" class="btn btn-outline-primary" aria-pressed="false"
-                            aria-label="Microphone voice input"
+                            aria-label="Microphone voice input" aria-describedby="uiHint"
                             title="Record your answer with the microphone">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
                              viewBox="0 0 16 16" aria-hidden="true">
                             <path d="M3.5 6.5a.5.5 0 0 0-1 0v1a5.5 5.5 0 0 0 4.5 5.43V15H4.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1H9v-2.07a5.5 5.5 0 0 0 4.5-5.43v-1a.5.5 0 0 0-1 0v1a4.5 4.5 0 0 1-9 0z"/>
                             <path d="M8 0a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3m1 7a1 1 0 0 1-2 0V3a1 1 0 0 1 2 0z"/>
                         </svg>
                     </button>
                     <input id="messageInput" type="text" class="form-control" autocomplete="off"
-                           placeholder="Type your message..." aria-label="Your message">
+                           placeholder="Type your message..." aria-label="Your message" aria-describedby="uiHint">
                     <button id="sendButton" type="button" class="btn btn-primary">
                         Send
                     </button>
@@ -87,28 +103,55 @@
             </div>
         </div>
 
-        <div class="d-flex gap-2 mt-3">
-            <a th:href="@{/patient/home}" class="btn btn-outline-secondary btn-sm">Back to Home</a>
+        <div class="d-flex gap-2 mt-3 flex-wrap">
+            <a th:href="@{/patient/home}" class="btn btn-outline-secondary">Back to Home</a>
         </div>
 
-        <div id="documentUploadSection" class="card shadow-sm d-none">
+        <div id="reviewPanel" class="card shadow-sm d-none mt-3">
             <div class="card-header bg-white">
-                <h2 class="h5 fw-bold mb-0 medikiosk-title">Upload Clinical Documents</h2>
-                <p class="small text-muted mb-0">Attach reports or scans (PDF, JPEG, PNG &middot; max 10 MB) for your physician to review.</p>
+                <h2 class="h5 fw-bold mb-0 medikiosk-title">Review your visit</h2>
+                <p class="small text-muted mb-0">
+                    Read through what you said before finishing. Nothing here is a diagnosis or treatment.
+                </p>
             </div>
             <div class="card-body">
-                <form id="documentUploadForm" class="d-flex gap-2">
-                    <input id="documentFileInput" type="file" class="form-control"
-                           accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                           aria-label="Choose a clinical document to upload">
-                    <button id="documentUploadButton" type="button" class="btn btn-primary text-nowrap">Upload</button>
-                </form>
-                <div id="documentUploadFeedback" class="mt-2 small d-none"></div>
-                <div class="mt-3">
-                    <h3 class="h6 fw-semibold mb-2">Uploaded documents</h3>
-                    <div id="documentList" class="list-group small">
-                        <div class="text-muted py-1">No documents uploaded yet.</div>
+                <p class="mb-2"><strong>Progress:</strong> <span id="reviewProgressText">-</span></p>
+
+                <div id="redFlagReviewBox" class="alert alert-warning d-none" role="alert">
+                    <strong>Flagged for clinical review.</strong> Some of your answers matched signs that should be
+                    reviewed carefully by your physician. Please also seek urgent care immediately if your condition
+                    is getting worse.
+                </div>
+                <div id="noRedFlagReviewBox" class="alert alert-success d-none" role="status">
+                    No urgent warning signs were detected in your answers. Your physician will still review everything.
+                </div>
+
+                <div id="reviewAnswers" class="review-answers">
+                    <div class="text-muted py-1">Loading your answers&hellip;</div>
+                </div>
+
+                <hr>
+
+                <div id="documentUploadSection" class="d-none">
+                    <h3 class="h6 fw-semibold mb-2">Attach prescriptions, lab reports, or discharge summaries (PDF, JPEG, PNG &middot; max 10 MB)</h3>
+                    <form id="documentUploadForm" class="d-flex gap-2 flex-wrap">
+                        <input id="documentFileInput" type="file" class="form-control form-control-lg"
+                               accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                               aria-label="Choose a clinical document to upload">
+                        <button id="documentUploadButton" type="button" class="btn btn-primary text-nowrap btn-lg">Upload</button>
+                    </form>
+                    <div id="documentUploadFeedback" class="mt-2 small d-none"></div>
+                    <div class="mt-3">
+                        <h3 class="h6 fw-semibold mb-2">Uploaded documents</h3>
+                        <div id="documentList" class="list-group small">
+                            <div class="text-muted py-1">No documents uploaded yet.</div>
+                        </div>
                     </div>
+                </div>
+
+                <div class="d-flex flex-column flex-sm-row gap-2 mt-4">
+                    <a id="finishButton" href="#" class="btn btn-success btn-lg flex-grow-1">Submit &amp; Finish</a>
+                    <a th:href="@{/patient/home}" class="btn btn-outline-secondary">Back to Home</a>
                 </div>
             </div>
         </div>

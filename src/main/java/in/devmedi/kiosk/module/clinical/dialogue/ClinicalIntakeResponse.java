@@ -13,17 +13,21 @@ import java.util.List;
  * by a render-ready {@link IntakeQuestion} so the UI can identify the current
  * section (HPI/SOCRATES or Dashavidha) regardless of which planner produced it.</p>
  *
- * @param question  the single next question, or {@code null} when the dialogue is complete
- * @param state     overall dialogue state after this step
- * @param completed whether the clinical intake sequence is finished
- * @param redFlags  zero or more detected red flags (deterministic)
- * @param urgency   overall urgency across all detected red flags
- * @param caseId    the completed case identity, present only when {@code completed} is true
+ * @param question        the single next question, or {@code null} when the dialogue is complete
+ * @param state           overall dialogue state after this step
+ * @param completed       whether the clinical intake sequence is finished
+ * @param redFlags        zero or more detected red flags (deterministic)
+ * @param urgency         overall urgency across all detected red flags
+ * @param caseId          the completed case identity, present only when {@code completed} is true
+ * @param answeredCount   questions answered so far in this conversation (honest, from real session state)
+ * @param totalCount      total questions in the deterministic conversation (always 25)
  */
 public record ClinicalIntakeResponse(IntakeQuestion question,
                                      DialogueState state,
                                      boolean completed,
                                      List<RedFlag> redFlags,
                                      RedFlagSeverity urgency,
-                                     String caseId) {
+                                     String caseId,
+                                     int answeredCount,
+                                     int totalCount) {
 }

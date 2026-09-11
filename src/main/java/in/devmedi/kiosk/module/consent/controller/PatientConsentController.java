@@ -1,9 +1,12 @@
 package in.devmedi.kiosk.module.consent.controller;
 
 import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
+import in.devmedi.kiosk.module.clinical.controller.PatientIntakeLanguageController;
 import in.devmedi.kiosk.module.consent.entity.ConsentState;
 import in.devmedi.kiosk.module.consent.entity.ConsentType;
 import in.devmedi.kiosk.module.consent.service.ConsentService;
+import in.devmedi.kiosk.module.voice.language.LanguageService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,13 +25,16 @@ import java.util.Map;
 public class PatientConsentController {
 
     private final ConsentService consentService;
+    private final LanguageService languageService;
 
-    public PatientConsentController(ConsentService consentService) {
+    public PatientConsentController(ConsentService consentService, LanguageService languageService) {
         this.consentService = consentService;
+        this.languageService = languageService;
     }
 
     @GetMapping
-    public String consentPage(@AuthenticationPrincipal ApplicationUserDetails user, Model model) {
+    public String consentPage(@AuthenticationPrincipal ApplicationUserDetails user, Model model,
+                              HttpSession session) {
         if (user == null) {
             return "redirect:/login";
         }
@@ -36,6 +42,9 @@ public class PatientConsentController {
         model.addAttribute("user", user);
         model.addAttribute("granted", granted);
         model.addAttribute("consents", buildPurposeList(granted));
+        model.addAttribute("supportedLanguages", languageService.supportedLanguages());
+        model.addAttribute("currentLanguage", languageService.resolve(
+                (String) session.getAttribute(PatientIntakeLanguageController.LANGUAGE_ATTRIBUTE)));
         return "patient/consent";
     }
 

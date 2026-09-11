@@ -18,13 +18,16 @@ import in.devmedi.kiosk.module.clinical.dialogue.IntakeQuestion;
 import in.devmedi.kiosk.module.clinical.dialogue.QuestionPlanner;
 import in.devmedi.kiosk.module.clinical.dialogue.QuestionSource;
 import in.devmedi.kiosk.module.clinical.dialogue.AnswerSource;
+import in.devmedi.kiosk.module.clinical.i18n.QuestionLocalizationService;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlag;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagEvaluator;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagSeverity;
+import in.devmedi.kiosk.module.patientsession.service.PatientSessionService;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
 import in.devmedi.kiosk.module.voice.language.LanguageService;
+import in.devmedi.kiosk.module.voice.language.SupportedLanguage;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -54,7 +57,16 @@ import java.util.stream.Collectors;
  * completes after the eighth Ahara-Vihara parameter. Every submitted answer is
  * also captured, in order, into an in-memory {@link ClinicalConversationResult}
  * kept in the HTTP session. When the intake completes, that result is handed to
- * the physician review store and persisted as a completed case.
+ * the physician review store and persisted as a completed case, and the
+ * patient's session is marked completed so a genuinely finished patient can
+ * start again cleanly.
+ *
+ * <p>Presentation language (M5.1): the patient's selected language is resolved
+ * per request. For every non-English language the canonical English question is
+ * replaced by a curated offline translation, recorded honestly as
+ * {@link QuestionSource#TRANSLATED} with the language actually used. AI
+ * conversational rewording is only ever offered for English; no AI multilingual
+ * capability is claimed.</p>
  *
  * <p>AI assistance (adaptive): when an AI provider is configured, a validated
  * provider may phrase the next deterministic question conversationally or ask a
@@ -65,6 +77,12 @@ import java.util.stream.Collectors;
  * verbatim answer, so the clinical record preserves the exact truth. Without
  * credentials, or on any provider or validation failure, the canonical
  * deterministic question is used unchanged.</p>
+ *
+ * <p>Duplicate-protection: a case is persisted exactly once per HTTP session.
+ * The final answer registers and saves the completed case, remembers its
+ * identity in the session, and marks the patient session COMPLETED; a repeated
+ * final answer (double-click, refresh, back) returns the same completed response
+ * with the same case id and re-saves nothing.</p>
  */
 @RestController
 @RequestMapping("/patient/intake/conversation")
@@ -72,6 +90,9 @@ public class ClinicalIntakeConversationController {
 
     public static final String RESULT_ATTRIBUTE = "clinicalConversationResult";
     public static final String DISPLAYED_ATTRIBUTE = "clinicalConversationDisplayed";
+
+    /** HTTP session attribute holding the case id once a case has been persisted. */
+    public static final String COMPLETED_CASE_ATTRIBUTE = "clinicalConversationCompletedCaseId";
 
     private final QuestionPlanner questionPlanner;
     private final DashavidhaQuestionPlanner dashavidhaQuestionPlanner;
@@ -81,10 +102,13 @@ public class ClinicalIntakeConversationController {
     private final CompletedCasePersistenceService casePersistence;
     private final AiConversationService aiConversationService;
     private final LanguageService languageService;
+    private final QuestionLocalizationService questionLocalization;
+    private final PatientSessionService patientSessionService;
 
     private final Set<String> clinicalQuestionIds;
     private final Set<String> dashavidhaQuestionIds;
     private final Set<String> aharaViharaQuestionIds;
+    private final int totalQuestions;
 
     public ClinicalIntakeConversationController(QuestionPlanner questionPlanner,
                                                 DashavidhaQuestionPlanner dashavidhaQuestionPlanner,
@@ -93,7 +117,9 @@ public class ClinicalIntakeConversationController {
                                                 CompletedCaseReviewStore reviewStore,
                                                 CompletedCasePersistenceService casePersistence,
                                                 AiConversationService aiConversationService,
-                                                LanguageService languageService) {
+                                                LanguageService languageService,
+                                                QuestionLocalizationService questionLocalization,
+                                                PatientSessionService patientSessionService) {
         this.questionPlanner = questionPlanner;
         this.dashavidhaQuestionPlanner = dashavidhaQuestionPlanner;
         this.aharaViharaQuestionPlanner = aharaViharaQuestionPlanner;
@@ -102,6 +128,8 @@ public class ClinicalIntakeConversationController {
         this.casePersistence = casePersistence;
         this.aiConversationService = aiConversationService;
         this.languageService = languageService;
+        this.questionLocalization = questionLocalization;
+        this.patientSessionService = patientSessionService;
         this.clinicalQuestionIds = questionPlanner.questions().stream()
                 .map(ClinicalQuestion::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -111,15 +139,35 @@ public class ClinicalIntakeConversationController {
         this.aharaViharaQuestionIds = aharaViharaQuestionPlanner.questions().stream()
                 .map(AharaViharaQuestion::id)
                 .collect(Collectors.toUnmodifiableSet());
+        this.totalQuestions = clinicalQuestionIds.size() + dashavidhaQuestionIds.size() + aharaViharaQuestionIds.size();
     }
 
     @PostMapping("/start")
     @ResponseStatus(HttpStatus.OK)
     public ClinicalIntakeResponse start(HttpSession session) {
+        String completedCaseId = (String) session.getAttribute(COMPLETED_CASE_ATTRIBUTE);
+        if (completedCaseId != null) {
+            return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
+                    List.of(), RedFlagSeverity.NONE, completedCaseId, totalQuestions, totalQuestions);
+        }
         session.setAttribute(RESULT_ATTRIBUTE, new ClinicalConversationResult());
         session.setAttribute(DISPLAYED_ATTRIBUTE, new LinkedHashMap<String, DisplayedQuestion>());
-        IntakeQuestion first = IntakeQuestion.fromClinical(questionPlanner.firstQuestion());
-        return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false, List.of(), RedFlagSeverity.NONE, null);
+        IntakeQuestion first = localized(
+                IntakeQuestion.fromClinical(questionPlanner.firstQuestion()), resolvedLanguage(session));
+        return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false,
+                List.of(), RedFlagSeverity.NONE, null, 0, totalQuestions);
+    }
+
+    @PostMapping("/restart")
+    @ResponseStatus(HttpStatus.OK)
+    public ClinicalIntakeResponse restart(HttpSession session) {
+        session.removeAttribute(COMPLETED_CASE_ATTRIBUTE);
+        session.setAttribute(RESULT_ATTRIBUTE, new ClinicalConversationResult());
+        session.setAttribute(DISPLAYED_ATTRIBUTE, new LinkedHashMap<String, DisplayedQuestion>());
+        IntakeQuestion first = localized(
+                IntakeQuestion.fromClinical(questionPlanner.firstQuestion()), resolvedLanguage(session));
+        return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false,
+                List.of(), RedFlagSeverity.NONE, null, 0, totalQuestions);
     }
 
     @PostMapping("/answer")
@@ -132,7 +180,7 @@ public class ClinicalIntakeConversationController {
         }
         ClinicalConversationResult result = resultFor(session);
         Map<String, DisplayedQuestion> displayed = displayedFor(session);
-        String language = resolvedLanguage(session).bcp47();
+        SupportedLanguage language = resolvedLanguage(session);
         AnswerSource answerSource = AnswerSource.normalize(request.answerSource());
 
         String questionId = request.questionId();
@@ -143,7 +191,8 @@ public class ClinicalIntakeConversationController {
             return handleDashavidhaAnswer(questionId, request.answer(), answerSource, language, result, displayed);
         }
         if (aharaViharaQuestionIds.contains(questionId)) {
-            return handleAharaViharaAnswer(questionId, request.answer(), answerSource, language, result, displayed, principal);
+            return handleAharaViharaAnswer(questionId, request.answer(), answerSource, language, result, displayed,
+                    session, principal);
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown question id: " + questionId);
     }
@@ -153,9 +202,8 @@ public class ClinicalIntakeConversationController {
      * deterministically to English when no selection has been made. Language is
      * presentation-layer state and never influences clinical progression.
      */
-    private in.devmedi.kiosk.module.voice.language.SupportedLanguage resolvedLanguage(HttpSession session) {
-        String selected = (String) session.getAttribute(
-                in.devmedi.kiosk.module.clinical.controller.PatientIntakeLanguageController.LANGUAGE_ATTRIBUTE);
+    private SupportedLanguage resolvedLanguage(HttpSession session) {
+        String selected = (String) session.getAttribute(PatientIntakeLanguageController.LANGUAGE_ATTRIBUTE);
         return languageService.resolve(selected);
     }
 
@@ -179,13 +227,27 @@ public class ClinicalIntakeConversationController {
     }
 
     /**
+     * Replaces the canonical English question with its curated translation when
+     * the presentation language is not English. Falls back to the canonical text
+     * (unchanged) for English or any question without a translation.
+     */
+    private IntakeQuestion localized(IntakeQuestion canonical, SupportedLanguage language) {
+        String translated = questionLocalization.translation(canonical.id(), language);
+        if (translated == null) {
+            return canonical;
+        }
+        return new IntakeQuestion(canonical.id(), canonical.section(), canonical.type(),
+                translated, canonical.required(), canonical.order());
+    }
+
+    /**
      * Advances within the unchanged SOCRATES/HPI sequence. After the final HPI
      * question the conversation transitions to the first Dashavidha question
      * rather than completing.
      */
     private ClinicalIntakeResponse handleClinicalAnswer(String questionId, String answer,
                                                        AnswerSource answerSource,
-                                                       String language,
+                                                       SupportedLanguage language,
                                                        ClinicalConversationResult result,
                                                        Map<String, DisplayedQuestion> displayed) {
         ClinicalQuestion answered = questionPlanner.question(questionId);
@@ -205,7 +267,7 @@ public class ClinicalIntakeConversationController {
                     result,
                     displayed);
             return new ClinicalIntakeResponse(nextQuestion,
-                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
+                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null, result.size(), totalQuestions);
         }
 
         DashavidhaQuestion firstDashavidha = dashavidhaQuestionPlanner.firstQuestion();
@@ -218,7 +280,7 @@ public class ClinicalIntakeConversationController {
                 result,
                 displayed);
         return new ClinicalIntakeResponse(nextQuestion,
-                DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
+                DialogueState.IN_PROGRESS, false, redFlags, urgency, null, result.size(), totalQuestions);
     }
 
     /**
@@ -226,9 +288,9 @@ public class ClinicalIntakeConversationController {
      * conversation transitions to the first Ahara-Vihara question rather than
      * completing.
      */
-private ClinicalIntakeResponse handleDashavidhaAnswer(String questionId, String answer,
+    private ClinicalIntakeResponse handleDashavidhaAnswer(String questionId, String answer,
                                                          AnswerSource answerSource,
-                                                         String language,
+                                                         SupportedLanguage language,
                                                          ClinicalConversationResult result,
                                                          Map<String, DisplayedQuestion> displayed) {
         DashavidhaQuestion answered = dashavidhaQuestionPlanner.question(questionId);
@@ -248,7 +310,7 @@ private ClinicalIntakeResponse handleDashavidhaAnswer(String questionId, String 
                     result,
                     displayed);
             return new ClinicalIntakeResponse(nextQuestion,
-                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
+                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null, result.size(), totalQuestions);
         }
 
         AharaViharaQuestion firstAharaVihara = aharaViharaQuestionPlanner.firstQuestion();
@@ -261,19 +323,27 @@ private ClinicalIntakeResponse handleDashavidhaAnswer(String questionId, String 
                 result,
                 displayed);
         return new ClinicalIntakeResponse(nextQuestion,
-                DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
+                DialogueState.IN_PROGRESS, false, redFlags, urgency, null, result.size(), totalQuestions);
     }
 
     /**
      * Advances within the Ahara-Vihara sequence. After the eighth parameter the
-     * whole intake conversation is complete.
+     * whole intake conversation is complete and the case is persisted exactly
+     * once for this HTTP session.
      */
-private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String answer,
+    private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String answer,
                                                          AnswerSource answerSource,
-                                                         String language,
+                                                         SupportedLanguage language,
                                                          ClinicalConversationResult result,
                                                          Map<String, DisplayedQuestion> displayed,
+                                                         HttpSession session,
                                                          ApplicationUserDetails principal) {
+        String alreadyCompleted = (String) session.getAttribute(COMPLETED_CASE_ATTRIBUTE);
+        if (alreadyCompleted != null) {
+            return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
+                    List.of(), RedFlagSeverity.NONE, alreadyCompleted, totalQuestions, totalQuestions);
+        }
+
         AharaViharaQuestion answered = aharaViharaQuestionPlanner.question(questionId);
         recordAnswered(IntakeQuestion.fromAharaVihara(answered), answer, answerSource, language, displayed, result);
         List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
@@ -291,31 +361,38 @@ private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String
                     result,
                     displayed);
             return new ClinicalIntakeResponse(nextQuestion,
-                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null);
+                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null, result.size(), totalQuestions);
         }
         Long userId = principal != null ? principal.getId() : null;
         CompletedCase completedCase = reviewStore.register(result);
         casePersistence.save(completedCase, userId);
-        return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true, redFlags, urgency, completedCase.id());
+        String caseId = completedCase.id();
+        session.setAttribute(COMPLETED_CASE_ATTRIBUTE, caseId);
+        if (userId != null) {
+            patientSessionService.complete(userId);
+        }
+        return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
+                redFlags, urgency, caseId, totalQuestions, totalQuestions);
     }
 
     /**
      * Records the full clinical truth for one answered step: the canonical
      * question/objective, the wording that was actually displayed, its source
-     * (AI or deterministic), the patient's verbatim answer, and the
+     * (translated, AI, or deterministic), the patient's verbatim answer, and the
      * patient-facing language used for this step.
      */
     private void recordAnswered(IntakeQuestion canonical,
                                 String answer,
                                 AnswerSource answerSource,
-                                String language,
+                                SupportedLanguage language,
                                 Map<String, DisplayedQuestion> displayed,
                                 ClinicalConversationResult result) {
         DisplayedQuestion shown = displayed.remove(canonical.id());
         if (shown == null) {
             shown = new DisplayedQuestion(canonical.text(), QuestionSource.DETERMINISTIC);
         }
-        result.record(ClinicalAnswer.from(canonical, shown.text(), answer, shown.source(), answerSource, language));
+        result.record(ClinicalAnswer.from(canonical, shown.text(), answer, shown.source(), answerSource,
+                language.bcp47()));
     }
 
     /**
@@ -326,16 +403,28 @@ private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String
      * unavailable or its output is rejected, the canonical deterministic text is
      * used unchanged. The resulting wording and source are remembered for the
      * next step so the clinical record reflects exactly what was shown.
+     *
+     * <p>AI rewording is only attempted for English. For a non-English session
+     * the curated offline translation is used and recorded as
+     * {@link QuestionSource#TRANSLATED}; no AI multilingual capability is
+     * claimed.</p>
      */
     private IntakeQuestion conversationalWording(IntakeQuestion deterministic,
                                                  String sectionName,
                                                  String targetTopic,
                                                  String latestAnswer,
-                                                 String language,
+                                                 SupportedLanguage language,
                                                  ClinicalConversationResult result,
                                                  Map<String, DisplayedQuestion> displayed) {
+        String translated = questionLocalization.translation(deterministic.id(), language);
+        if (translated != null) {
+            IntakeQuestion shown = new IntakeQuestion(deterministic.id(), deterministic.section(),
+                    deterministic.type(), translated, deterministic.required(), deterministic.order());
+            displayed.put(shown.id(), new DisplayedQuestion(shown.text(), QuestionSource.TRANSLATED));
+            return shown;
+        }
         NextQuestionWording wording = aiConversationService.nextQuestionWording(
-                sectionName, targetTopic, deterministic.text(), latestAnswer, result.all(), language);
+                sectionName, targetTopic, deterministic.text(), latestAnswer, result.all(), language.bcp47());
         IntakeQuestion shown = deterministic;
         QuestionSource source = QuestionSource.DETERMINISTIC;
         if (wording.source() == NextQuestionSource.AI_GENERATED) {

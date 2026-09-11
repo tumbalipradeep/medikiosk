@@ -105,6 +105,15 @@ class PhysicianReviewControllerIntegrationTests {
                 .andExpect(jsonPath("$.question.id").value("chief_complaint_symptom"));
     }
 
+    private void restartConversation(MockHttpSession session) throws Exception {
+        mockMvc.perform(post("/patient/intake/conversation/restart")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.question.id").value("chief_complaint_symptom"));
+    }
+
     private void answer(MockHttpSession session, String questionId, String answerText) throws Exception {
         mockMvc.perform(post("/patient/intake/conversation/answer")
                         .session(session)
@@ -125,7 +134,7 @@ class PhysicianReviewControllerIntegrationTests {
         String chief = "Nagging pain in my left knee";
         String dashavidha = "Sturdy build, feels warm most of the time";
         String habits = "Occasional evening walking; daily morning yoga";
-        startConversation(session);
+        restartConversation(session);
         answer(session, "chief_complaint_symptom", chief);
         answerIds(session, HPI_IDS.subList(1, HPI_IDS.size()), ORDINARY);
         answer(session, "dashavidha_prakriti", dashavidha);

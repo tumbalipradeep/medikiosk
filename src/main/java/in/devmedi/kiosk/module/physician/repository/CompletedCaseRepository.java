@@ -13,4 +13,9 @@ public interface CompletedCaseRepository extends JpaRepository<CompletedCaseEnti
      * @return the most recently created completed case, if any
      */
     Optional<CompletedCaseEntity> findTopByOrderByCreatedAtDesc();
+
+    /**
+     * @return the most recently created completed case belonging to the given user, if any
+     */
+    Optional<CompletedCaseEntity> findTopByUserIdOrderByCreatedAtDesc(Long userId);
 }

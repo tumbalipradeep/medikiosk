@@ -79,6 +79,15 @@ public class CompletedCasePersistenceService {
         return loadByCaseId(caseId);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<CompletedCase> findLatestByUser(Long userId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        return completedCaseRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
+                .flatMap(entity -> loadByCaseId(entity.getCaseId()));
+    }
+
     @Transactional
     public void deleteAll() {
         answerRepository.deleteAllInBatch();

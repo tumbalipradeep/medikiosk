@@ -76,11 +76,11 @@ public class PatientIntakeLanguageController {
     }
 
     private static LanguageSelection selection(SupportedLanguage language) {
-        return new LanguageSelection(language.code(), language.label(), language.bcp47());
+        return new LanguageSelection(language.code(), language.label(), language.nativeName(), language.bcp47());
     }
 
     /** Selection payload returned to the UI. */
-    public record LanguageSelection(String code, String label, String bcp47) {
+    public record LanguageSelection(String code, String label, String nativeName, String bcp47) {
     }
 
     /** Selection request payload. */

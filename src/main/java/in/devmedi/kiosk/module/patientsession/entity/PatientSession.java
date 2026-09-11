@@ -60,6 +60,17 @@ public class PatientSession {
         this.startedAt = Instant.now();
     }
 
+    /**
+     * Marks this active session as completed at the current time. Only an active
+     * session can be completed; completing anything else is a no-op.
+     */
+    public void markCompleted() {
+        if (status == PatientSessionStatus.ACTIVE) {
+            this.status = PatientSessionStatus.COMPLETED;
+            this.completedAt = Instant.now();
+        }
+    }
+
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();

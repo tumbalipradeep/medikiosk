@@ -48,4 +48,20 @@ public class PatientSessionService {
     public boolean hasActiveSession(Long userId) {
         return patientSessionRepository.existsByUserIdAndStatus(userId, PatientSessionStatus.ACTIVE);
     }
+
+    /**
+     * Marks the patient's active session as completed. Called once the intake
+     * case has been persisted so a genuinely finished patient can start a new
+     * session. A session is completed only from the ACTIVE state; anything else
+     * is a no-op and never throws.
+     */
+    @Transactional
+    public void complete(Long userId) {
+        patientSessionRepository
+                .findFirstByUserIdAndStatusOrderByStartedAtDesc(userId, PatientSessionStatus.ACTIVE)
+                .ifPresent(session -> {
+                    session.markCompleted();
+                    patientSessionRepository.save(session);
+                });
+    }
 }

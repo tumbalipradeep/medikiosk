@@ -6,31 +6,96 @@
             name: 'English',
             greeting: 'Hello! I can help you describe what has been troubling you. ' +
                 'Please tell me about your problem in your own words.',
-            placeholder: 'Type your message...'
+            placeholder: 'Type your message...',
+            progress: 'answered',
+            of: 'of',
+            sections: {
+                HISTORY: 'History',
+                DASHAVIDHA: 'AYUSH Dashavidha',
+                AHARA_VIHARA: 'AYUSH Ahara-Vihara'
+            },
+            steps: ['History', 'AYUSH Assessment', 'Lifestyle', 'Review'],
+            redFlagTitle: 'Flagged for clinical review',
+            redFlagNote: 'Some of your answers matched signs that should be reviewed carefully by your physician. ' +
+                'If you feel worse right now, please seek urgent care immediately.',
+            complete: 'The conversation is complete. Please review your answers below.',
+            startFailed: 'Sorry, I could not start the conversation. Please refresh the page.'
         },
         'hi-IN': {
             name: 'Hindi',
             greeting: 'नमस्ते! मैं आपकी समस्या समझने में मदद कर सकता हूँ। ' +
                 'कृपया अपनी समस्या अपने शब्दों में बताइए।',
-            placeholder: 'अपना संदेश लिखिए...'
+            placeholder: 'अपना संदेश लिखिए...',
+            progress: 'उत्तर पूरे हुए',
+            of: 'में से',
+            sections: {
+                HISTORY: 'इतिहास',
+                DASHAVIDHA: 'आयुष दशविध',
+                AHARA_VIHARA: 'आयुष आहार-विहार'
+            },
+            steps: ['इतिहास', 'आयुष मूल्यांकन', 'जीवनशैली', 'समीक्षा'],
+            redFlagTitle: 'चिकित्सकीय समीक्षा के लिए चिह्नित',
+            redFlagNote: 'आपके कुछ उत्तर ऐसे संकेतों से मेल खाते हैं जिन्हें आपके डॉक्टर को ध्यान से देखना चाहिए। ' +
+                'अगर अभी आपकी हालत बिगड़ रही है, तो कृपया तुरंत आपातकालीन सहायता लें।',
+            complete: 'बातचीत पूरी हो गई है। कृपया नीचे अपने उत्तरों की समीक्षा करें।',
+            startFailed: 'क्षमा करें, बातचीत शुरू नहीं हो सकी। कृपया पेज रीफ़्रेश करें।'
         },
         'te-IN': {
             name: 'Telugu',
             greeting: 'నమస్కారం! మీ సమస్యను వివరించడంలో నేను సహాయపడగలను. ' +
                 'దయచేసి మీ సమస్యను మీ స్వంత మాటల్లో చెప్పండి.',
-            placeholder: 'మీ సందేశాన్ని టైప్ చేయండి...'
+            placeholder: 'మీ సందేశాన్ని టైప్ చేయండి...',
+            progress: 'ప్రశ్నలకు సమాధానం ఇచ్చారు',
+            of: 'లో',
+            sections: {
+                HISTORY: 'చరిత్ర',
+                DASHAVIDHA: 'ఆయుష్ దశవిధ',
+                AHARA_VIHARA: 'ఆయుష్ ఆహార-విహార'
+            },
+            steps: ['చరిత్ర', 'ఆయుష్ అంచనా', 'జీవనశైలి', 'సమీక్ష'],
+            redFlagTitle: 'వైద్య సమీక్ష కోసం గుర్తించబడింది',
+            redFlagNote: 'మీ కొన్ని సమాధానాలు మీ వైద్యుడు జాగ్రత్తగా పరిశీలించాల్సిన సంకేతాలకు సరిపోలాయి. ' +
+                'ప్రస్తుతం మీ పరిస్థితి మరింత అధ్వాన్నంగా ఉంటే, వెంటనే అత్యవసర సహాయం పొందండి.',
+            complete: 'సంభాషణ పూర్తయింది. దయచేసి మీ సమాధానాలను క్రింద సమీక్షించండి.',
+            startFailed: 'క్షమించండి, సంభాషణను ప్రారంభించలేకపోయాము. దయచేసి పేజీని రీఫ్రెష్ చేయండి.'
         },
         'ta-IN': {
             name: 'Tamil',
             greeting: 'வணக்கம்! உங்கள் பிரச்சனையை விவரிக்க நான் உதவ முடியும். ' +
                 'தயவுசெய்து உங்கள் பிரச்சனையை உங்கள் வார்த்தைகளில் சொல்லுங்கள்.',
-            placeholder: 'உங்கள் செய்தியைத் தட்டச்சு செய்க...'
+            placeholder: 'உங்கள் செய்தியைத் தட்டச்சு செய்க...',
+            progress: 'கேள்விகளுக்கு பதிலளித்துள்ளீர்கள்',
+            of: 'இல்',
+            sections: {
+                HISTORY: 'வரலாறு',
+                DASHAVIDHA: 'ஆயுஷ் தசவித',
+                AHARA_VIHARA: 'ஆயுஷ் ஆகார-விஹார'
+            },
+            steps: ['வரலாறு', 'ஆயுஷ் மதிப்பீடு', 'வாழ்க்கை முறை', 'மதிப்பாய்வு'],
+            redFlagTitle: 'மருத்துவ மதிப்பாய்வுக்காகக் குறிக்கப்பட்டது',
+            redFlagNote: 'உங்கள் சில பதில்கள் உங்கள் மருத்துவர் கவனமாகப் பார்க்க வேண்டிய அறிகுறிகளுடன் பொருந்தின. ' +
+                'இப்போது உங்கள் நிலை மோசமாகி வருகிறது என்றால், உடனடியாக அவசர சிகிச்சை பெறுங்கள்.',
+            complete: 'உரையாடல் முடிந்தது. உங்கள் பதில்களை கீழே மதிப்பாய்வு செய்யவும்.',
+            startFailed: 'மன்னிக்கவும், உரையாடலைத் தொடங்க முடியவில்லை. பக்கத்தைப் புதுப்பிக்கவும்.'
         },
         'kn-IN': {
             name: 'Kannada',
             greeting: 'ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ವಿವರಿಸಲು ನಾನು ಸಹಾಯ ಮಾಡಬಹುದು. ' +
                 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ನಿಮ್ಮ ಮಾತುಗಳಲ್ಲಿ ಹೇಳಿ.',
-            placeholder: 'ನಿಮ್ಮ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ...'
+            placeholder: 'ನಿಮ್ಮ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ...',
+            progress: 'ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಿದ್ದೀರಿ',
+            of: 'ರಲ್ಲಿ',
+            sections: {
+                HISTORY: 'ಇತಿಹಾಸ',
+                DASHAVIDHA: 'ಆಯುಷ್ ದಶವಿಧ',
+                AHARA_VIHARA: 'ಆಯುಷ್ ಅಹಾರ-ವಿಹಾರ'
+            },
+            steps: ['ಇತಿಹಾಸ', 'ಆಯುಷ್ ಮೌಲ್ಯಮಾಪನ', 'ಜೀವನಶೈಲಿ', 'ವಿಮರ್ಶೆ'],
+            redFlagTitle: 'ವೈದ್ಯಕೀಯ ವಿಮರ್ಶೆಗಾಗಿ ಗುರುತಿಸಲಾಗಿದೆ',
+            redFlagNote: 'ನಿಮ್ಮ ಕೆಲವು ಉತ್ತರಗಳು ನಿಮ್ಮ ವೈದ್ಯರು ಎಚ್ಚರಿಕೆಯಿಂದ ಪರಿಶೀಲಿಸಬೇಕಾದ ಚಿಹ್ನೆಗಳಿಗೆ ಹೊಂದಿಕೆಯಾಗಿವೆ. ' +
+                'ಈಗ ನಿಮ್ಮ ಸ್ಥಿತಿ ಹದಗೆಡುತ್ತಿದ್ದರೆ, ತಕ್ಷಣ ತುರ್ತು ಆರೈಕೆ ಪಡೆಯಿರಿ.',
+            complete: 'ಸಂಭಾಷಣೆ ಪೂರ್ಣಗೊಂಡಿದೆ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಉತ್ತರಗಳನ್ನು ಕೆಳಗೆ ಪರಿಶೀಲಿಸಿ.',
+            startFailed: 'ಕ್ಷಮಿಸಿ, ಸಂಭಾಷಣೆಯನ್ನು ಪ್ರಾರಂಭಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಪುಟವನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಿ.'
         }
     };
 
@@ -45,6 +110,10 @@
         var hint = document.getElementById('uiHint');
         var micButton = document.getElementById('micButton');
         var speakButton = document.getElementById('speakQuestion');
+        var statusRegion = document.getElementById('statusRegion');
+        var progressText = document.getElementById('progressText');
+        var stepper = document.getElementById('journeyStepper');
+        var reviewPanel = document.getElementById('reviewPanel');
 
         var currentLang = 'en-IN';
         var currentBcp47 = 'en-IN';
@@ -54,6 +123,7 @@
         var inFlight = false;
         var currentCaseId = null;
         var voiceUsed = false;
+        var progressState = {answered: 0, total: 25, section: null};
 
         function csrfHeaderName() {
             var meta = document.querySelector('meta[name="_csrf_header"]');
@@ -85,6 +155,12 @@
             return value;
         }
 
+        function announce(message) {
+            if (statusRegion) {
+                statusRegion.textContent = message || '';
+            }
+        }
+
         function setHint(message) {
             if (hint) {
                 hint.textContent = message || '';
@@ -93,7 +169,8 @@
 
         function updatePlaceholder() {
             if (!conversationActive) {
-                input.placeholder = LANGUAGES[currentLang].name + ' · conversation complete';
+                input.placeholder = LANGUAGES[currentLang].name + ' \u00b7 ' +
+                    LANGUAGES[currentLang].complete.toLowerCase();
                 return;
             }
             input.placeholder = LANGUAGES[currentLang].placeholder;
@@ -105,10 +182,16 @@
             currentBcp47 = bcp47For(currentLang);
             badge.textContent = resolved.name;
             badge.setAttribute('data-lang', currentLang);
+            badge.textContent = resolved.name + ' \u00b7 ' +
+                (selector && selector.selectedOptions.length
+                    ? (selector.selectedOptions[0].getAttribute('data-native') || '')
+                    : '');
             if (greeting) {
                 greeting.textContent = resolved.greeting;
             }
             updatePlaceholder();
+            // Re-render stepper labels AND the last known progress in the new language.
+            setProgress(progressState.answered, progressState.total, progressState.section);
         }
 
         function persistLanguage(lang) {
@@ -141,12 +224,48 @@
             scrollToBottom();
         }
 
+        function sectionLabel(section) {
+            var labels = LANGUAGES[currentLang].sections;
+            if (labels && labels[section]) {
+                return labels[section];
+            }
+            return section;
+        }
+
+        function setProgress(answered, total, section) {
+            progressState.answered = answered;
+            progressState.total = total;
+            progressState.section = section || null;
+            if (progressText) {
+                var lang = LANGUAGES[currentLang];
+                var answeredLabel = answered + ' ' + lang.progress + ' ' + lang.of + ' ' + total;
+                progressText.textContent = answered + ' / ' + total + ' \u00b7 ' + answeredLabel;
+            }
+            if (stepper) {
+                var active = section === 'CHIEF_COMPLAINT' || section === 'HISTORY_OF_PRESENT_ILLNESS'
+                    ? 'HISTORY'
+                    : (section || '');
+                if (!conversationActive) {
+                    active = 'REVIEW';
+                }
+                var steps = stepper.querySelectorAll('.progress-step');
+                for (var i = 0; i < steps.length; i++) {
+                    var match = steps[i].getAttribute('data-step') === active;
+                    steps[i].classList.toggle('active', match);
+                    steps[i].setAttribute('aria-current', match ? 'step' : 'false');
+                }
+                if (LANGUAGES[currentLang].steps) {
+                    for (var j = 0; j < steps.length; j++) {
+                        steps[j].textContent = LANGUAGES[currentLang].steps[j];
+                    }
+                }
+            }
+        }
+
         function showQuestion(question) {
             var text = question.text;
-            if (question.section === 'DASHAVIDHA') {
-                text = 'AYUSH Dashavidha · ' + question.type + '\n' + text;
-            } else if (question.section === 'AHARA_VIHARA') {
-                text = 'AYUSH Ahara-Vihara · ' + question.type + '\n' + text;
+            if (question.section === 'DASHAVIDHA' || question.section === 'AHARA_VIHARA') {
+                text = sectionLabel(question.section) + ' \u00b7 ' + question.type + '\n' + text;
             }
             appendMessage('assistant', text);
             currentQuestionId = question.id;
@@ -157,7 +276,8 @@
             }
         }
 
-        function appendUrgentWarning(redFlags) {
+        function appendReviewFlagBanner(redFlags) {
+            var lang = LANGUAGES[currentLang];
             var text = redFlags.map(function (flag) {
                 return flag.title + ': ' + flag.message;
             }).join('\n');
@@ -167,21 +287,24 @@
             bubble.className = 'chat-bubble';
             var title = document.createElement('div');
             title.className = 'urgent-title';
-            title.textContent = 'Urgent attention required';
+            title.textContent = lang.redFlagTitle;
             var span = document.createElement('span');
             span.className = 'chat-text';
-            span.textContent = text;
+            span.textContent = text + '\n\n' + lang.redFlagNote;
             bubble.appendChild(title);
             bubble.appendChild(span);
             template.appendChild(bubble);
             chatMessages.appendChild(template);
+            announce(lang.redFlagTitle);
             scrollToBottom();
         }
 
         function handleStep(data) {
-            if (data.urgency === 'URGENT' && data.redFlags && data.redFlags.length > 0) {
-                appendUrgentWarning(data.redFlags);
+            if (data.redFlags && data.redFlags.length > 0) {
+                appendReviewFlagBanner(data.redFlags);
             }
+            setProgress(data.answeredCount, data.totalCount,
+                data.question ? data.question.section : null);
             if (data.completed || !data.question) {
                 currentCaseId = data.caseId || null;
                 completeConversation();
@@ -190,18 +313,100 @@
             }
         }
 
-        function completeConversation() {
+        function disableConversationControls() {
             conversationActive = false;
             currentQuestionId = null;
             currentDisplayedQuestionText = '';
             stopListening();
-            appendMessage('assistant', 'The intake conversation is complete. Thank you.');
             input.disabled = true;
             sendButton.disabled = true;
             updatePlaceholder();
+        }
+
+        function completeConversation() {
+            disableConversationControls();
             if (currentCaseId) {
-                showDocumentUpload();
+                appendMessage('assistant', LANGUAGES[currentLang].complete);
+                showReviewPanel(currentCaseId);
+            } else {
+                appendMessage('assistant', LANGUAGES[currentLang].complete);
             }
+        }
+
+        function showReviewPanel(caseId) {
+            if (!reviewPanel) {
+                return;
+            }
+            reviewPanel.classList.remove('d-none');
+            var progress = document.getElementById('reviewProgressText');
+            if (progress) {
+                progress.textContent = '25 / 25';
+            }
+            var finish = document.getElementById('finishButton');
+            if (finish) {
+                finish.href = '/patient/intake/complete?caseId=' + encodeURIComponent(caseId);
+            }
+            showDocumentUpload();
+            loadReviewSummary(caseId);
+        }
+
+        function loadReviewSummary(caseId) {
+            var container = document.getElementById('reviewAnswers');
+            if (!container) {
+                return;
+            }
+            fetch('/patient/cases/' + encodeURIComponent(caseId) + '/summary', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken()
+                }
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error('summary failed');
+                }
+                return response.json();
+            }).then(function (summary) {
+                container.innerHTML = '';
+                if (!summary.answers || summary.answers.length === 0) {
+                    var empty = document.createElement('div');
+                    empty.className = 'text-muted py-1';
+                    empty.textContent = 'No answers were recorded for this case.';
+                    container.appendChild(empty);
+                    return;
+                }
+                var redFlagBox = document.getElementById('redFlagReviewBox');
+                var noFlagBox = document.getElementById('noRedFlagReviewBox');
+                if (summary.flaggedCount > 0) {
+                    if (redFlagBox) {
+                        redFlagBox.classList.remove('d-none');
+                    }
+                    if (noFlagBox) {
+                        noFlagBox.classList.add('d-none');
+                    }
+                } else {
+                    if (redFlagBox) {
+                        redFlagBox.classList.add('d-none');
+                    }
+                    if (noFlagBox) {
+                        noFlagBox.classList.remove('d-none');
+                    }
+                }
+                summary.answers.forEach(function (item) {
+                    var wrapper = document.createElement('div');
+                    wrapper.className = 'review-item';
+                    var q = document.createElement('div');
+                    q.className = 'review-question fw-semibold';
+                    q.textContent = item.displayedText;
+                    var a = document.createElement('div');
+                    a.className = 'review-answer';
+                    a.textContent = item.answer || '(no answer given)';
+                    wrapper.appendChild(q);
+                    wrapper.appendChild(a);
+                    container.appendChild(wrapper);
+                });
+            }).catch(function () {
+                container.innerHTML = '<div class="text-danger py-1">Could not load your review.</div>';
+            });
         }
 
         function startConversation() {
@@ -215,12 +420,15 @@
                 .then(function (data) {
                     if (data && data.question) {
                         handleStep(data);
+                    } else if (data.caseId) {
+                        currentCaseId = data.caseId;
+                        completeConversation();
                     } else {
                         completeConversation();
                     }
                 })
                 .catch(function () {
-                    appendMessage('assistant', 'Sorry, I could not start the conversation. Please refresh the page.');
+                    appendMessage('assistant', LANGUAGES[currentLang].startFailed);
                 });
         }
 
@@ -267,6 +475,18 @@
                 });
         }
 
+        function installBeforeUnloadGuard() {
+            window.addEventListener('beforeunload', beforeUnloadHandler);
+        }
+
+        function beforeUnloadHandler(event) {
+            if (!conversationActive) {
+                return;
+            }
+            event.preventDefault();
+            event.returnValue = '';
+        }
+
         if (selector) {
             selector.addEventListener('change', function () {
                 var chosen = selector.value;
@@ -277,15 +497,6 @@
             });
             applyLanguage(selector.value);
         }
-
-        sendButton.addEventListener('click', submitAnswer);
-
-        input.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                submitAnswer();
-            }
-        });
 
         /* ---------------- Voice input (server ASR) ---------------- */
 
@@ -308,6 +519,7 @@
         function setMicError(message) {
             micClass('error');
             setHint(message);
+            announce(message);
         }
 
         function stopListening() {
@@ -375,8 +587,10 @@
             };
             mediaRecorder.start(250);
             micClass('listening');
-            setHint('Listening in ' + LANGUAGES[currentLang].name +
-                ' \u2026 speak, then press the mic again to stop (max 30 seconds).');
+            var listeningMessage = 'Listening in ' + LANGUAGES[currentLang].name +
+                ' \u2026 speak, then press the mic again to stop (max 30 seconds).';
+            setHint(listeningMessage);
+            announce(listeningMessage);
             recordingTimer = setTimeout(function () {
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     setHint('Reached the 30-second limit. Transcribing \u2026');
@@ -455,6 +669,7 @@
                     input.value = result.body.transcript;
                     micClass('success');
                     setHint('Transcribed. Review it, then press Send.');
+                    announce('Transcribed your answer. Review it, then press Send.');
                     input.focus();
                 } else if (result.status === 200 && code === 'EMPTY') {
                     micClass('idle');
@@ -462,17 +677,21 @@
                 } else if (code === 'UNAVAILABLE') {
                     micClass('unavailable');
                     setHint('Voice input is unavailable right now. You can keep typing.');
+                    announce('Voice input is unavailable right now. You can keep typing.');
                 } else if (code === 'UNSUPPORTED') {
                     micClass('unavailable');
                     setHint('Voice input does not support ' + LANGUAGES[currentLang].name +
                         ' yet. You can keep typing.');
+                    announce('Voice input does not support ' + LANGUAGES[currentLang].name + ' yet.');
                 } else {
                     micClass('error');
                     setHint('Voice input failed. Try again or type instead.');
+                    announce('Voice input failed. Try again or type instead.');
                 }
             }).catch(function () {
                 micClass('error');
-                setHint('Voice input failed. Try again or type instead.');
+                setHint('Voice input is unavailable right now. You can keep typing.');
+                announce('Voice input is unavailable right now. You can keep typing.');
             }).finally(function () {
                 asrInFlight = false;
                 micButton.disabled = false;
@@ -483,6 +702,7 @@
             if (error && error.name === 'NotAllowedError') {
                 micClass('error');
                 setHint('Microphone permission was denied. Allow it in the browser to use voice, or type instead.');
+                announce('Microphone permission was denied. You can type instead.');
             } else if (error && error.name === 'NotFoundError') {
                 micClass('unavailable');
                 setHint('No microphone was found. You can keep typing.');
@@ -704,6 +924,12 @@
                 showUploadFeedback('Please choose a file first.', true);
                 return;
             }
+            var MAX_BYTES = 10 * 1024 * 1024;
+            if (file.size > MAX_BYTES) {
+                showUploadFeedback('This file is larger than 10 MB. Please choose a smaller file.', true);
+                announce('This file is larger than 10 MB. Please choose a smaller file.');
+                return;
+            }
             var formData = new FormData();
             formData.append('file', file);
             button.disabled = true;
@@ -723,9 +949,12 @@
                 if (result.status === 200) {
                     fileInput.value = '';
                     showUploadFeedback('Document uploaded successfully.', false);
+                    announce('Document uploaded successfully.');
                     loadDocuments();
                 } else {
-                    showUploadFeedback(result.body && result.body.error ? result.body.error : 'Upload failed.', true);
+                    showUploadFeedback(result.body && result.body.error
+                        ? result.body.error
+                        : 'Upload failed. Please try again.', true);
                 }
             }).catch(function () {
                 showUploadFeedback('Upload failed. Please try again.', true);
@@ -745,6 +974,25 @@
             });
         }
 
-        startConversation();
+        sendButton.addEventListener('click', submitAnswer);
+
+        input.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                submitAnswer();
+            }
+        });
+
+        installBeforeUnloadGuard();
+
+        var completedMeta = document.querySelector('meta[name="completed-case"]');
+        if (completedMeta && completedMeta.content) {
+            currentCaseId = completedMeta.content;
+            disableConversationControls();
+            appendMessage('assistant', LANGUAGES[currentLang].complete);
+            showReviewPanel(currentCaseId);
+        } else {
+            startConversation();
+        }
     });
 })();

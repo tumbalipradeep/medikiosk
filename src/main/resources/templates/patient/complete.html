@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Visit complete - MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Visit complete - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/nav :: authnav}"></div>
+
+<main class="flex-grow-1 py-5">
+    <div class="container">
+        <div class="card shadow-sm mx-auto text-center" style="max-width: 720px;">
+            <div class="card-body p-4 p-md-5">
+                <div class="display-6 text-success mb-3" aria-hidden="true">&#10003;</div>
+                <h1 class="h4 fw-bold mb-2 medikiosk-title">Thank you &mdash; your visit is complete.</h1>
+                <p class="text-muted mb-4">
+                    Your case was recorded on this device for your physician to review.
+                </p>
+
+                <div class="alert alert-info text-start" role="status">
+                    <strong>Good to know:</strong> this kiosk is running in <strong>demo mode</strong>. Your answers
+                    were stored locally and are <strong>not</strong> linked to an ABHA (Ayushman Bharat Health
+                    Account) and nothing was transmitted to ABDM. No Aadhaar or ABHA number was collected.
+                </div>
+
+                <dl class="row text-start mb-4">
+                    <dt class="col-5 col-sm-4 text-muted">Case reference</dt>
+                    <dd class="col-7 col-sm-8"><span th:text="${caseId}" class="text-break">case-id</span></dd>
+                    <dt class="col-5 col-sm-4 text-muted">Questions answered</dt>
+                    <dd class="col-7 col-sm-8"><span th:text="${answeredCount}">25</span> of 25</dd>
+                    <dt class="col-5 col-sm-4 text-muted">Clinical review flag</dt>
+                    <dd class="col-7 col-sm-8">
+                        <span th:if="${flaggedCount > 0}" class="badge text-bg-warning rounded-pill">
+                            Flagged for clinical review
+                        </span>
+                        <span th:unless="${flaggedCount > 0}" class="badge text-bg-success rounded-pill">
+                            No urgent flags detected
+                        </span>
+                    </dd>
+                </dl>
+
+                <div th:if="${flaggedCount > 0}" class="alert alert-warning text-start" role="alert">
+                    <strong>Flagged for clinical review.</strong> Some of your answers matched signs that should be
+                    reviewed carefully by your physician. If you are feeling worse right now, please seek urgent
+                    care immediately.
+                </div>
+
+                <div class="d-flex flex-column flex-sm-row gap-2">
+                    <form th:action="@{/patient/session/start}" method="post" class="mb-0 flex-grow-1">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">Start a new visit</button>
+                    </form>
+                    <a th:href="@{/patient/home}" class="btn btn-outline-secondary btn-lg">Back to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-white border-top py-3 text-center text-muted small">
+    &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot; SIH26047
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
