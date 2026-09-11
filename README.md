@@ -17,11 +17,39 @@ A modular-monolith web application for taking patient cases at a medical kiosk.
 - Vanilla JavaScript
 - Modular monolith architecture
 
-## Checkpoint Status
+## Milestone Status
 
-**Checkpoint 1 — Foundation (complete).** This repository establishes the application shell:
-startup, home page, health endpoint, PostgreSQL + Flyway wiring, Bootstrap integration, and
-the modular package skeleton. No feature modules (auth, clinical, AI, etc.) are implemented yet.
+**M1 — Clinical document intelligence (complete).** Authentication/security
+(role-based patient, physician and admin access with CSRF and login), patient
+clinical intake, AYUSH Dashavidha Pariksha and Ahara-Vihara questions, red
+flags, structured clinical summary, and clinical document
+upload/extraction/findings/timeline.
+
+**M2 — Adaptive AI clinical conversation (complete).** A deterministic clinical
+dialogue driven by a structured question plan, with an adaptive AI layer
+(environment-provided Groq / Gemini / OpenRouter adapters) that only re-words,
+never invents, the next question. Physician review and persistent completed
+cases complete the case-taking loop.
+
+**M3 — Multilingual voice-enabled intake (complete).** Multilingual intake
+(English, Hindi, Telugu, Tamil, Kannada) with voice ASR/TTS and a Bhashini
+adapter. Live speech requires environment-provided credentials; without them a
+deterministic `UNAVAILABLE` fallback keeps the patient on typed input.
+
+MediKiosk currently includes:
+
+- Authentication/security
+- Patient clinical intake
+- AYUSH Dashavidha Pariksha
+- Ahara-Vihara
+- Red flags
+- Structured clinical summary
+- Physician review
+- Persistent completed cases
+- Clinical document upload/extraction/findings/timeline
+- Adaptive AI clinical conversation
+- Multilingual intake
+- Voice ASR/TTS integration with a Bhashini adapter and deterministic fallback
 
 ## Prerequisites
 
@@ -44,7 +72,7 @@ sudo -u postgres psql -c "CREATE DATABASE medikiosk OWNER medikiosk;"
 export DB_URL="jdbc:postgresql://localhost:5432/medikiosk"
 export DB_USERNAME="medikiosk"
 export DB_PASSWORD="medikiosk"
-export SERVER_PORT="8080"
+export SERVER_PORT="8081"
 ```
 
 Defaults are already set in `application.yml`, so a stock setup needs no exports.
@@ -61,7 +89,7 @@ mvn clean test
 mvn spring-boot:run
 ```
 
-The application starts on `http://localhost:8080`.
+The application starts on `http://localhost:8081`.
 
 ### Local profile (no PostgreSQL required)
 
@@ -74,8 +102,8 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 ## Verify
 
-- Home page: http://localhost:8080 — shows **MediKiosk / Patient Case-Taking Platform / Foundation Ready / Application Status: UP**
-- Health endpoint: http://localhost:8080/actuator/health
+- Home page: http://localhost:8081 — MediKiosk welcome page showing application status (**Application Status: UP**)
+- Health endpoint: http://localhost:8081/actuator/health
 
 ## Project Structure
 
@@ -86,11 +114,16 @@ src/main/java/in/devmedi/kiosk/
   core/                       # Shared base domain
   health/                     # Health indicator
   home/                       # Home controller
-  module/                     # Feature modules (placeholders for later checkpoints)
-    auth/                     # Authentication (later)
-    patient/                  # Patient registration (later)
-    clinical/                 # Clinical case taking (later)
-    ai/ ocr/ voice/ ayush/ redflags/ appointment/ physician/ fhir/ abdm/ his/ document/
+module/                     # Feature modules
+      auth/                     # Authentication / security
+      patient/                  # Patient home, consent, intake
+      clinical/                 # Clinical dialogue, AYUSH, red flags, summary, adaptive AI
+      voice/                    # ASR/TTS (Bhashini adapter + deterministic fallback)
+      document/                 # Document upload / extraction / findings / timeline
+      physician/                # Physician review, completed cases
+      patientsession/           # Patient session state
+      consent/ admin/ ai/       # Consent, admin home, AI provider adapters
+      appointment/ fhir/ abdm/ his/ ocr/   # Planned / placeholder
 src/main/resources/
   application.yml             # PostgreSQL / Flyway configuration
   templates/home.html         # Home page
