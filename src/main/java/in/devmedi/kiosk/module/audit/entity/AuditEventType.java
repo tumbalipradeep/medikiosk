@@ -9,5 +9,10 @@ package in.devmedi.kiosk.module.audit.entity;
  * here as dedicated values rather than folding them into {@code FHIR_EXPORT}.</p>
  */
 public enum AuditEventType {
-    FHIR_EXPORT
+
+    /** Physician FHIR export through the interoperability boundary. */
+    FHIR_EXPORT,
+
+    /** Physician review decision (accept / amend / reject) against an intake answer. */
+    PHYSICIAN_REVIEW
 }

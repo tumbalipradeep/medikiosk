@@ -36,6 +36,19 @@ public class ApplicationUserDetails implements UserDetails {
         return displayName;
     }
 
+    /**
+     * @return the role name (e.g. {@code PHYSICIAN}) for UI navigation links
+     */
+    public String getRoleLabel() {
+        for (GrantedAuthority authority : authorities) {
+            String a = authority.getAuthority();
+            if (a.startsWith("ROLE_")) {
+                return a.substring(5);
+            }
+        }
+        return "";
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;

@@ -373,7 +373,7 @@ class ClinicalDocumentExtractionIntegrationTests {
 
         MockHttpSession physician = loginPhysician();
 
-        mockMvc.perform(get("/physician/review").session(physician))
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Not extracted")))
                 .andExpect(content().string(containsString("Extract text")))
@@ -384,7 +384,7 @@ class ClinicalDocumentExtractionIntegrationTests {
                         .with(csrf()))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/physician/review").session(physician))
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Text extracted")))
                 .andExpect(content().string(containsString("View extracted text")))

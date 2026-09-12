@@ -386,13 +386,13 @@ class ClinicalFindingsIntegrationTests {
 
         MockHttpSession physician = loginPhysician();
 
-        mockMvc.perform(get("/physician/review").session(physician))
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("View structured findings"))));
 
         extract(caseId, documentId);
 
-        mockMvc.perform(get("/physician/review").session(physician))
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("View structured findings")))
                 .andExpect(content().string(containsString("findings-view-btn")));

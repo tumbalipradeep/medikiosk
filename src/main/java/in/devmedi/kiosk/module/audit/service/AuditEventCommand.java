@@ -43,4 +43,16 @@ public record AuditEventCommand(AuditEventType eventType,
         return new AuditEventCommand(AuditEventType.FHIR_EXPORT, Instant.now(), actorUsername,
                 actorRole, caseId, "EXPORT", "Bundle", outcome, failureReason, requestPath);
     }
+
+    /** Physician review decision against one intake answer of a completed case. */
+    public static AuditEventCommand physicianReview(String actorUsername,
+                                                    String actorRole,
+                                                    String caseId,
+                                                    String operation,
+                                                    String requestPath,
+                                                    AuditOutcome outcome,
+                                                    String failureReason) {
+        return new AuditEventCommand(AuditEventType.PHYSICIAN_REVIEW, Instant.now(), actorUsername,
+                actorRole, caseId, operation, "ReviewEntry", outcome, failureReason, requestPath);
+    }
 }

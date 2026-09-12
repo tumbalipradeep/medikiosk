@@ -36,14 +36,19 @@ import java.util.Optional;
  * the established convention; this endpoint introduces no new permissions,
  * roles, or authorization mechanism.</p>
  *
- * <p>On every controller-observable outcome (success or resolvable-case
- * failure) a minimal audit event is recorded via {@link AuditService} in its
- * own {@code REQUIRES_NEW} transaction so the write can never corrupt, roll
- * back, or fail the clinical export request. Audit failures are logged but
- * never propagated. Only controller-observable outcomes are audited: 403
- * responses from Spring Security filters and anonymous redirects are handled
- * upstream and deliberately not recorded here - the application does not
- * bypass security filters to create audit events.</p>
+ * <p>On every controller-observable outcome (success, resolvable-case failure,
+ * or an unexpected internal export failure) a minimal audit event is recorded
+ * via {@link AuditService} in its own {@code REQUIRES_NEW} transaction so the
+ * write can never corrupt, roll back, or fail the clinical export request.
+ * Audit failures are logged but never propagated. Only controller-observable
+ * outcomes are audited: 403 responses from Spring Security filters and
+ * anonymous redirects are handled upstream and deliberately not recorded here
+ * - the application does not bypass security filters to create audit events.</p>
+ *
+ * <p>An unexpected runtime failure during export or transport is audited with
+ * {@code AuditOutcome.FAILURE}/{@code INTERNAL_ERROR} before the exception is
+ * rethrown, so an observable export failure is never silently absent from the
+ * audit trail.</p>
  *
  * <p>After a successful export the generated Bundle is passed through
  * {@link FhirExportTransport} so the bundle reaches the interoperability
@@ -84,16 +89,25 @@ public class PhysicianFhirController {
         String role = actor == null ? null : stripRolePrefix(actor);
         String requestPath = request.getRequestURI();
 
-        Optional<FhirBundle> maybe = fhirCaseExportService.exportCompletedCase(caseId);
-        if (maybe.isEmpty()) {
+        FhirBundle bundle;
+        try {
+            Optional<FhirBundle> maybe = fhirCaseExportService.exportCompletedCase(caseId);
+            if (maybe.isEmpty()) {
+                auditService.record(AuditEventCommand.fhirExport(username, role, caseId, requestPath,
+                        AuditOutcome.FAILURE, "CASE_NOT_FOUND"));
+                throw new IllegalArgumentException("Case not found");
+            }
+            bundle = maybe.get();
+            FhirExportContract contract = FhirExportContract.of(caseId, bundle);
+            fhirExportTransport.transmit(contract);
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
             auditService.record(AuditEventCommand.fhirExport(username, role, caseId, requestPath,
-                    AuditOutcome.FAILURE, "CASE_NOT_FOUND"));
-            throw new IllegalArgumentException("Case not found");
+                    AuditOutcome.FAILURE, "INTERNAL_ERROR"));
+            throw ex;
         }
 
-        FhirBundle bundle = maybe.get();
-        FhirExportContract contract = FhirExportContract.of(caseId, bundle);
-        fhirExportTransport.transmit(contract);
         auditService.record(AuditEventCommand.fhirExport(username, role, caseId, requestPath,
                 AuditOutcome.SUCCESS, null));
 

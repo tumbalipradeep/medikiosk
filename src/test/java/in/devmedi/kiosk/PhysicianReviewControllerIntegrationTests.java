@@ -1,8 +1,6 @@
 package in.devmedi.kiosk;
 
 import com.jayway.jsonpath.JsonPath;
-import in.devmedi.kiosk.module.auth.repository.UserRepository;
-import in.devmedi.kiosk.module.document.service.ClinicalDocumentService;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
@@ -70,9 +68,6 @@ class PhysicianReviewControllerIntegrationTests {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private UserRepository userRepository;
 
     @Autowired
     private CompletedCaseReviewStore reviewStore;
@@ -197,58 +192,81 @@ class PhysicianReviewControllerIntegrationTests {
         assertThat(reviewStore.latest()).isEmpty();
 
         MockHttpSession physician = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(physician))
+        mockMvc.perform(get("/physician/home").session(physician))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No reviewable intake yet")));
+                .andExpect(content().string(containsString("No completed intakes yet")));
     }
 
     @Test
-    void physicianReviewReadsTheRegisteredCompletedCase() throws Exception {
-        MockHttpSession patient = login("patient", "patient123");
-        completePatientIntake(patient);
-
-        MockHttpSession physician = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(physician))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("History of Present Illness / SOCRATES")))
-                .andExpect(content().string(containsString("Dashavidha Pariksha")))
-                .andExpect(content().string(containsString("Ahara-Vihara")))
-                .andExpect(content().string(containsString("25 captured answers")))
-                .andExpect(content().string(containsString("Nagging pain in my left knee")))
-                .andExpect(content().string(containsString("Sturdy build, feels warm most of the time")))
-                .andExpect(content().string(containsString("Occasional evening walking; daily morning yoga")))
-                .andExpect(content().string(not(containsString("Severe headache"))))
-                .andExpect(content().string(containsString("mark-reviewed-btn")))
-                .andExpect(content().string(containsString("completeReviewBtn")));
-    }
-
-    @Test
-    void physicianReviewShowsEmptyStateWhenNoCompletedCase() throws Exception {
-        MockHttpSession physician = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(physician))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No reviewable intake yet")))
-                .andExpect(content().string(not(containsString("Dashavidha Pariksha"))))
-                .andExpect(content().string(not(containsString("mark-reviewed-btn"))))
-                .andExpect(content().string(not(containsString("completeReviewBtn"))));
-    }
-
-    @Test
-    void physicianReviewPageExposesTheCompletedCaseIdentity() throws Exception {
+    void physicianDashboardListsCompletedCases() throws Exception {
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
         String caseId = reviewStore.latest().orElseThrow().id();
 
         MockHttpSession physician = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(physician))
+        mockMvc.perform(get("/physician/home").session(physician))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Case " + caseId)));
+                .andExpect(content().string(containsString("Physician Dashboard")))
+                .andExpect(content().string(containsString(caseId)))
+                .andExpect(content().string(containsString("25")))
+                .andExpect(content().string(containsString("Open workspace")));
     }
 
     @Test
-    void patientCannotAccessReviewPage() throws Exception {
-        MockHttpSession session = login("patient", "patient123");
-        mockMvc.perform(get("/physician/review").session(session))
+    void oldReviewUrlRedirectsToDashboard() throws Exception {
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/review").session(physician))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/physician/home"));
+    }
+
+    @Test
+    void physicianCaseWorkspaceShowsCaseEvidenceAndProvenance() throws Exception {
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+        String caseId = reviewStore.latest().orElseThrow().id();
+
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Case Workspace")))
+                .andExpect(content().string(containsString("History of Present Illness / SOCRATES")))
+                .andExpect(content().string(containsString("Dashavidha Pariksha")))
+                .andExpect(content().string(containsString("25 captured answers")))
+                .andExpect(content().string(containsString("No ABHA linked (demo)")))
+                .andExpect(content().string(containsString("Deterministic wording")))
+                .andExpect(content().string(containsString("Typed")))
+                .andExpect(content().string(containsString("Nagging pain in my left knee")))
+                .andExpect(content().string(containsString("Sturdy build, feels warm most of the time")))
+                .andExpect(content().string(containsString("Occasional evening walking; daily morning yoga")))
+                .andExpect(content().string(not(containsString("Severe headache"))))
+                .andExpect(content().string(containsString("Export FHIR (R4)")))
+                .andExpect(content().string(containsString("is not authorization to share data externally")));
+    }
+
+    @Test
+    void physicianDashboardShowsEmptyStateWhenNoCompletedCase() throws Exception {
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/home").session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No completed intakes yet")))
+                .andExpect(content().string(not(containsString("Dashavidha Pariksha"))))
+                .andExpect(content().string(not(containsString("review-accept-btn"))));
+    }
+
+    @Test
+    void unknownCaseResolvesTo404() throws Exception {
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/cases/case-unknown").session(physician))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void patientCannotAccessPhysicianWorkspace() throws Exception {
+        MockHttpSession patient = login("patient", "patient123");
+        mockMvc.perform(get("/physician/cases/case-unknown").session(patient))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/physician/home").session(patient))
                 .andExpect(status().isForbidden());
     }
 
@@ -283,7 +301,7 @@ class PhysicianReviewControllerIntegrationTests {
     }
 
     @Test
-    void physicianReviewShowsAttachedDocumentsMetadata() throws Exception {
+    void physicianWorkspaceShowsAttachedDocumentsMetadata() throws Exception {
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
         String caseId = reviewStore.latest().orElseThrow().id();
@@ -296,7 +314,7 @@ class PhysicianReviewControllerIntegrationTests {
                 .andExpect(status().isOk());
 
         MockHttpSession physician = login("physician", "physician123");
-        mockMvc.perform(get("/physician/review").session(physician))
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Clinical Documents")))
                 .andExpect(content().string(containsString("xray-report.pdf")))
@@ -304,9 +322,45 @@ class PhysicianReviewControllerIntegrationTests {
     }
 
     @Test
-    void unauthenticatedAccessToReviewPageIsRedirectedToLogin() throws Exception {
-        mockMvc.perform(get("/physician/review"))
+    void unauthenticatedAccessToPhysicianDashboardIsRedirectedToLogin() throws Exception {
+        mockMvc.perform(get("/physician/home"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void workspaceSurfacesRedFlagsForConcerningChiefComplaint() throws Exception {
+        MockHttpSession patient = login("patient", "patient123");
+        restartConversation(patient);
+        answer(patient, "chief_complaint_symptom", "Severe crushing chest pain that started suddenly");
+        answerIds(patient, HPI_IDS.subList(1, HPI_IDS.size()), ORDINARY);
+        answerIds(patient, DASHAVIDHA_IDS, ORDINARY);
+        answerIds(patient, AHARA_VIHARA_IDS.subList(0, AHARA_VIHARA_IDS.size() - 1), ORDINARY);
+        answer(patient, "ahara_vihara_habits", "light walking");
+        String caseId = reviewStore.latest().orElseThrow().id();
+
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Clinical Red Flags")))
+                .andExpect(content().string(containsString("Severe chest pain or pressure")))
+                .andExpect(content().string(containsString("URGENT")))
+                .andExpect(content().string(containsString("Clinical review required")));
+
+        mockMvc.perform(get("/physician/home").session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("1")));
+    }
+
+    @Test
+    void workspaceDoesNotFlagOrdinaryAnswers() throws Exception {
+        MockHttpSession patient = login("patient", "patient123");
+        completePatientIntake(patient);
+        String caseId = reviewStore.latest().orElseThrow().id();
+
+        MockHttpSession physician = login("physician", "physician123");
+        mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Clinical Red Flags"))));
     }
 }

@@ -14,5 +14,7 @@ public interface ClinicalDocumentRepository extends JpaRepository<ClinicalDocume
 
     List<ClinicalDocument> findByCompletedCase_CaseIdAndUser_IdOrderByUploadedAtAsc(String caseId, Long userId);
 
+    long countByCompletedCase_CaseId(String caseId);
+
     void deleteByCompletedCase_CaseId(String caseId);
 }

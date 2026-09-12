@@ -36,6 +36,26 @@ cases complete the case-taking loop.
 adapter. Live speech requires environment-provided credentials; without them a
 deterministic `UNAVAILABLE` fallback keeps the patient on typed input.
 
+**M4 — Admin management (complete).** Admin home with user and system state
+overview.
+
+**M5.1 — Physician clinical trust (complete).** Deterministic repeatable FHIR
+R4 export for completed cases (audit trail, ABDM-ready boundary, byte-for-byte
+repeatability), physician timeline and provenance view, structured findings
+from documents, and honest demoscape boundaries (no fabricated identifiers or
+external claims).
+
+**M5.2 — Physician + interoperability + clinical trust (complete).** A
+physician dashboard with per-case workspaces that persist accept / amend /
+reject review decisions next to the original captured evidence, surface
+provenance (question source, answer source, language, wording), re-derive red
+flags deterministically from the patient's own words on every load, show
+document extraction / findings / timeline inline, and expose a clear
+interoperability and consent boundary with no simulated ABDM or HIS
+transmission (any real adapter is a no-op until configured and audited).
+Every review decision is audited; unexpected FHIR export failures are audited
+and surfaced as 500s. See `docs/M5.2-physician-interoperability-clinical-trust-audit.md`.
+
 MediKiosk currently includes:
 
 - Authentication/security
@@ -50,6 +70,8 @@ MediKiosk currently includes:
 - Adaptive AI clinical conversation
 - Multilingual intake
 - Voice ASR/TTS integration with a Bhashini adapter and deterministic fallback
+- Deterministic repeatable FHIR R4 export with audit trail
+- Physician dashboard with persistent accept / amend / reject workspace reviews
 
 ## Prerequisites
 

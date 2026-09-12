@@ -238,12 +238,12 @@ class PhysicianTimelineIntegrationTests {
     void workspaceAppearsOnTheReviewPage() throws Exception {
         LoadedCase loaded = loadTwoDocuments();
 
-        mockMvc.perform(get("/physician/review").session(loginPhysician()))
+        mockMvc.perform(get("/physician/cases/" + loaded.caseId()).session(loginPhysician()))
                 .andExpect(status().isOk())
                 .andExpect(result -> {
-                    var workspace = result.getModelAndView().getModel().get("workspace");
-                    assertThat(workspace).isNotNull();
-                    assertThat(workspace).asList().hasSize(2);
+                    var view = result.getModelAndView().getModel().get("workspace");
+                    assertThat(view).isNotNull();
+                    assertThat(((in.devmedi.kiosk.module.physician.workspace.WorkspaceView) view).documents()).hasSize(2);
                 });
     }
 
