@@ -353,7 +353,7 @@ class PhysicianReviewControllerIntegrationTests {
     }
 
     @Test
-    void workspaceDoesNotFlagOrdinaryAnswers() throws Exception {
+    void ordinaryAnswersRenderTheRedFlagsCardWithAnHonestZeroState() throws Exception {
         MockHttpSession patient = login("patient", "patient123");
         completePatientIntake(patient);
         String caseId = reviewStore.latest().orElseThrow().id();
@@ -361,6 +361,8 @@ class PhysicianReviewControllerIntegrationTests {
         MockHttpSession physician = login("physician", "physician123");
         mockMvc.perform(get("/physician/cases/" + caseId).session(physician))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("Clinical Red Flags"))));
+                .andExpect(content().string(containsString("Clinical Red Flags")))
+                .andExpect(content().string(containsString("None detected")))
+                .andExpect(content().string(not(containsString("Severe chest pain or pressure"))));
     }
 }

@@ -38,6 +38,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,15 +148,24 @@ public class ClinicalIntakeConversationController {
     public ClinicalIntakeResponse start(HttpSession session) {
         String completedCaseId = (String) session.getAttribute(COMPLETED_CASE_ATTRIBUTE);
         if (completedCaseId != null) {
-            return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
-                    List.of(), RedFlagSeverity.NONE, completedCaseId, totalQuestions, totalQuestions);
+            return completedResponse(completedCaseId);
         }
-        session.setAttribute(RESULT_ATTRIBUTE, new ClinicalConversationResult());
-        session.setAttribute(DISPLAYED_ATTRIBUTE, new LinkedHashMap<String, DisplayedQuestion>());
-        IntakeQuestion first = localized(
-                IntakeQuestion.fromClinical(questionPlanner.firstQuestion()), resolvedLanguage(session));
-        return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false,
-                List.of(), RedFlagSeverity.NONE, null, 0, totalQuestions);
+        ClinicalConversationResult result = resultFor(session);
+        if (result.isEmpty()) {
+            session.setAttribute(DISPLAYED_ATTRIBUTE, new LinkedHashMap<String, DisplayedQuestion>());
+            IntakeQuestion first = localized(
+                    IntakeQuestion.fromClinical(questionPlanner.firstQuestion()), resolvedLanguage(session));
+            return new ClinicalIntakeResponse(first, DialogueState.IN_PROGRESS, false,
+                    List.of(), RedFlagSeverity.NONE, null, 0, totalQuestions);
+        }
+        IntakeQuestion next = nextUnanswered(result);
+        if (next == null) {
+            List<RedFlag> flags = flagsFor(result);
+            return completeReady(session, result, null, flags, redFlagEvaluator.overallSeverity(flags));
+        }
+        restockDisplayed(session, next, resolvedLanguage(session));
+        return new ClinicalIntakeResponse(next, DialogueState.IN_PROGRESS, false,
+                List.of(), RedFlagSeverity.NONE, null, result.size(), totalQuestions);
     }
 
     @PostMapping("/restart")
@@ -329,7 +339,10 @@ public class ClinicalIntakeConversationController {
     /**
      * Advances within the Ahara-Vihara sequence. After the eighth parameter the
      * whole intake conversation is complete and the case is persisted exactly
-     * once for this HTTP session.
+     * once for this HTTP session. The completion is guarded by a per-session
+     * lock and a re-check of the completed-case marker, so a repeated or
+     * concurrent final answer (double-click, refresh, back) can never persist
+     * the same conversation twice.
      */
     private ClinicalIntakeResponse handleAharaViharaAnswer(String questionId, String answer,
                                                          AnswerSource answerSource,
@@ -338,41 +351,120 @@ public class ClinicalIntakeConversationController {
                                                          Map<String, DisplayedQuestion> displayed,
                                                          HttpSession session,
                                                          ApplicationUserDetails principal) {
-        String alreadyCompleted = (String) session.getAttribute(COMPLETED_CASE_ATTRIBUTE);
-        if (alreadyCompleted != null) {
+        synchronized (session.getId().intern()) {
+            String alreadyCompleted = (String) session.getAttribute(COMPLETED_CASE_ATTRIBUTE);
+            if (alreadyCompleted != null) {
+                return completedResponse(alreadyCompleted);
+            }
+
+            AharaViharaQuestion answered = aharaViharaQuestionPlanner.question(questionId);
+            recordAnswered(IntakeQuestion.fromAharaVihara(answered), answer, answerSource, language, displayed, result);
+            List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
+            RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
+
+            Optional<AharaViharaQuestion> next = aharaViharaQuestionPlanner.nextQuestion(answered.id());
+            if (next.isPresent()) {
+                AharaViharaQuestion question = next.get();
+                IntakeQuestion nextQuestion = conversationalWording(
+                        IntakeQuestion.fromAharaVihara(question),
+                        IntakeQuestion.AHARA_VIHARA_SECTION,
+                        question.parameter().name(),
+                        answer,
+                        language,
+                        result,
+                        displayed);
+                return new ClinicalIntakeResponse(nextQuestion,
+                        DialogueState.IN_PROGRESS, false, redFlags, urgency, null, result.size(), totalQuestions);
+            }
+
+            return completeReady(session, result, principal, redFlags, urgency);
+        }
+    }
+
+    /**
+     * Persists the finished conversation as a completed case exactly once.
+     *
+     * <p>The completed-case marker is set inside the same per-session
+     * lock that guards final-answer processing, so concurrent or repeated
+     * completion requests see the marker and return the same case id without
+     * re-persisting.</p>
+     */
+    private ClinicalIntakeResponse completeReady(HttpSession session,
+                                                 ClinicalConversationResult result,
+                                                 ApplicationUserDetails principal,
+                                                 List<RedFlag> redFlags,
+                                                 RedFlagSeverity urgency) {
+        synchronized (session.getId().intern()) {
+            String alreadyCompleted = (String) session.getAttribute(COMPLETED_CASE_ATTRIBUTE);
+            if (alreadyCompleted != null) {
+                return completedResponse(alreadyCompleted);
+            }
+            Long userId = principal != null ? principal.getId() : null;
+            CompletedCase completedCase = reviewStore.register(result);
+            casePersistence.save(completedCase, userId);
+            session.setAttribute(COMPLETED_CASE_ATTRIBUTE, completedCase.id());
+            if (userId != null) {
+                patientSessionService.complete(userId);
+            }
             return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
-                    List.of(), RedFlagSeverity.NONE, alreadyCompleted, totalQuestions, totalQuestions);
+                    redFlags, urgency, completedCase.id(), totalQuestions, totalQuestions);
         }
+    }
 
-        AharaViharaQuestion answered = aharaViharaQuestionPlanner.question(questionId);
-        recordAnswered(IntakeQuestion.fromAharaVihara(answered), answer, answerSource, language, displayed, result);
-        List<RedFlag> redFlags = redFlagEvaluator.evaluate(answer);
-        RedFlagSeverity urgency = redFlagEvaluator.overallSeverity(redFlags);
-
-        Optional<AharaViharaQuestion> next = aharaViharaQuestionPlanner.nextQuestion(answered.id());
-        if (next.isPresent()) {
-            AharaViharaQuestion question = next.get();
-            IntakeQuestion nextQuestion = conversationalWording(
-                    IntakeQuestion.fromAharaVihara(question),
-                    IntakeQuestion.AHARA_VIHARA_SECTION,
-                    question.parameter().name(),
-                    answer,
-                    language,
-                    result,
-                    displayed);
-            return new ClinicalIntakeResponse(nextQuestion,
-                    DialogueState.IN_PROGRESS, false, redFlags, urgency, null, result.size(), totalQuestions);
-        }
-        Long userId = principal != null ? principal.getId() : null;
-        CompletedCase completedCase = reviewStore.register(result);
-        casePersistence.save(completedCase, userId);
-        String caseId = completedCase.id();
-        session.setAttribute(COMPLETED_CASE_ATTRIBUTE, caseId);
-        if (userId != null) {
-            patientSessionService.complete(userId);
-        }
+    /**
+     * The canonical completed response for an already-completed session.
+     */
+    private ClinicalIntakeResponse completedResponse(String caseId) {
         return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
-                redFlags, urgency, caseId, totalQuestions, totalQuestions);
+                List.of(), RedFlagSeverity.NONE, caseId, totalQuestions, totalQuestions);
+    }
+
+    /**
+     * First question whose id is not yet present in the recorded answers, or
+     * {@code null} when every plan is exhausted. Drives conversation resume
+     * after a mid-session refresh.
+     */
+    private IntakeQuestion nextUnanswered(ClinicalConversationResult result) {
+        Set<String> answered = result.all().stream()
+                .map(ClinicalAnswer::questionId)
+                .collect(Collectors.toSet());
+        for (ClinicalQuestion q : questionPlanner.questions()) {
+            if (!answered.contains(q.id())) {
+                return IntakeQuestion.fromClinical(q);
+            }
+        }
+        for (DashavidhaQuestion q : dashavidhaQuestionPlanner.questions()) {
+            if (!answered.contains(q.id())) {
+                return IntakeQuestion.fromDashavidha(q);
+            }
+        }
+        for (AharaViharaQuestion q : aharaViharaQuestionPlanner.questions()) {
+            if (!answered.contains(q.id())) {
+                return IntakeQuestion.fromAharaVihara(q);
+            }
+        }
+        return null;
+    }
+
+    private void restockDisplayed(HttpSession session, IntakeQuestion question, SupportedLanguage language) {
+        Map<String, DisplayedQuestion> displayed = displayedFor(session);
+        String translated = questionLocalization.translation(question.id(), language);
+        if (translated != null) {
+            displayed.put(question.id(), new DisplayedQuestion(translated, QuestionSource.TRANSLATED));
+        } else {
+            displayed.put(question.id(), new DisplayedQuestion(question.text(), QuestionSource.DETERMINISTIC));
+        }
+    }
+
+    /**
+     * Re-evaluates red flags deterministically across every recorded answer.
+     */
+    private List<RedFlag> flagsFor(ClinicalConversationResult result) {
+        List<RedFlag> flags = new ArrayList<>();
+        for (ClinicalAnswer answer : result.all()) {
+            flags.addAll(redFlagEvaluator.evaluate(answer.answer()));
+        }
+        return List.copyOf(flags);
     }
 
     /**

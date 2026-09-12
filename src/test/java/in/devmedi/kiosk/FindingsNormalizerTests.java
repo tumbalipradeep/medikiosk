@@ -53,6 +53,14 @@ class FindingsNormalizerTests {
     }
 
     @Test
+    void valueNormalizerTreatsGroupedCommasAsThousandsButLoneCommaAsDecimal() {
+        assertThat(ValueNormalizer.normalize("12,500")).contains("12500");
+        assertThat(ValueNormalizer.normalize("1,234,567.89")).contains("1234567.89");
+        assertThat(ValueNormalizer.normalize("13,5")).contains("13.5");
+        assertThat(ValueNormalizer.normalize("4,789,0")).isEmpty();
+    }
+
+    @Test
     void unitNormalizerMapsEquivalentSpellingsOnly() {
         assertThat(UnitNormalizer.normalize("g/dl")).isEqualTo("g/dL");
         assertThat(UnitNormalizer.normalize("mg/dl")).isEqualTo("mg/dL");

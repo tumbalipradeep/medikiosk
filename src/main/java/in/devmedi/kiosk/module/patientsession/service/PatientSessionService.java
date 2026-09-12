@@ -29,6 +29,9 @@ public class PatientSessionService {
      * Starts an active patient session. Requires granted CLINICAL_CASE_TAKING consent
      * and no pre-existing active session. Throws {@link IllegalStateException} on either condition.
      *
+     * <p>The single-active check and the insert are serialized per user so two
+     * concurrent start requests can never create more than one active session.</p>
+     *
      * @return the newly created active session
      */
     @Transactional
@@ -36,12 +39,14 @@ public class PatientSessionService {
         if (!consentService.hasGranted(userId, ConsentType.CLINICAL_CASE_TAKING)) {
             throw new IllegalStateException("Clinical case-taking consent has not been granted.");
         }
-        if (hasActiveSession(userId)) {
-            throw new IllegalStateException("An active patient session already exists.");
+        synchronized (("patient-session-start:" + userId).intern()) {
+            if (hasActiveSession(userId)) {
+                throw new IllegalStateException("An active patient session already exists.");
+            }
+            User user = userRepository.getReferenceById(userId);
+            PatientSession session = new PatientSession(user);
+            return patientSessionRepository.save(session);
         }
-        User user = userRepository.getReferenceById(userId);
-        PatientSession session = new PatientSession(user);
-        return patientSessionRepository.save(session);
     }
 
     @Transactional(readOnly = true)

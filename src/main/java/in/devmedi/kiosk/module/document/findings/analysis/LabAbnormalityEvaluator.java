@@ -28,6 +28,9 @@ public final class LabAbnormalityEvaluator {
     private static final Pattern EXPRESSION =
             Pattern.compile("^([<>=]{1,2}\\s*)?" + NUMBER + "(?:\\s*-\\s*" + NUMBER + ")?.*$");
 
+    private static final Pattern THOUSANDS_GROUPED = Pattern.compile("\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?");
+    private static final Pattern COMMA_DECIMAL = Pattern.compile("\\d+,\\d+");
+
     private LabAbnormalityEvaluator() {
     }
 
@@ -109,9 +112,15 @@ public final class LabAbnormalityEvaluator {
         if (text == null || text.isBlank()) {
             return null;
         }
-        String cleaned = text.trim().replaceAll(",", "").replaceAll("\\s+", "");
+        String cleaned = text.trim().replaceAll("\\s+", "");
         if (cleaned.isEmpty()) {
             return null;
+        }
+        if (THOUSANDS_GROUPED.matcher(cleaned).matches()) {
+            cleaned = cleaned.replace(",", "");
+        } else if (COMMA_DECIMAL.matcher(cleaned).matches()) {
+            int comma = cleaned.indexOf(',');
+            cleaned = cleaned.substring(0, comma) + '.' + cleaned.substring(comma + 1);
         }
         try {
             return Double.parseDouble(cleaned);

@@ -95,6 +95,35 @@
             });
     }
 
+    // Serializes review submissions per answer so a fast double-click cannot
+    // fire two concurrent back-end writes (and two audit events) for the same
+    // decision. The server treats it as an idempotent upsert either way.
+    function guardedSubmit(entry, decision, amendedText) {
+        if (entry.dataset.submitting === 'true') {
+            return Promise.resolve();
+        }
+        entry.dataset.submitting = 'true';
+        var buttons = entry.querySelectorAll('button');
+        buttons.forEach(function (btn) {
+            btn.disabled = true;
+        });
+        return submitDecision(entry, decision, amendedText)
+            .then(function (result) {
+                entry.dataset.submitting = 'false';
+                buttons.forEach(function (btn) {
+                    btn.disabled = false;
+                });
+                return result;
+            })
+            .catch(function (e) {
+                entry.dataset.submitting = 'false';
+                buttons.forEach(function (btn) {
+                    btn.disabled = false;
+                });
+                throw e;
+            });
+    }
+
     document.querySelectorAll('.answer-entry').forEach(function (entry) {
         var acceptBtn = entry.querySelector('.review-accept-btn');
         var rejectBtn = entry.querySelector('.review-reject-btn');
@@ -105,14 +134,14 @@
 
         if (acceptBtn) {
             acceptBtn.addEventListener('click', function () {
-                submitDecision(entry, 'ACCEPTED').catch(function (e) {
+                guardedSubmit(entry, 'ACCEPTED').catch(function (e) {
                     alert(e.message);
                 });
             });
         }
         if (rejectBtn) {
             rejectBtn.addEventListener('click', function () {
-                submitDecision(entry, 'REJECTED').catch(function (e) {
+                guardedSubmit(entry, 'REJECTED').catch(function (e) {
                     alert(e.message);
                 });
             });
@@ -128,7 +157,7 @@
                     alert('Enter the amended text before saving.');
                     return;
                 }
-                submitDecision(entry, 'AMENDED', amendInput.value.trim()).then(function () {
+                guardedSubmit(entry, 'AMENDED', amendInput.value.trim()).then(function () {
                     amendForm.classList.add('d-none');
                 }).catch(function (e) {
                     alert(e.message);

@@ -248,4 +248,57 @@ class ClinicalIntakeConversationIntegrationTests {
                         .with(csrf()))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void restartingMidConversationResumesAtTheNextQuestion() throws Exception {
+        MockHttpSession session = login("patient", "patient123");
+        String chief = JsonPath.read(
+                postJson("/patient/intake/conversation/start", null, session), "$.question.id");
+
+        postJson("/patient/intake/conversation/answer",
+                "{\"questionId\":\"" + chief + "\",\"answer\":\"I have a headache.\"}", session);
+
+        String resume = postJson("/patient/intake/conversation/start", null, session);
+        assertThat(JsonPath.<String>read(resume, "$.question.id")).isEqualTo("hpi_onset");
+        assertThat(JsonPath.<Boolean>read(resume, "$.completed")).isFalse();
+        assertThat(JsonPath.<String>read(resume, "$.state")).isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
+    void completionPageWithoutACompletedCaseRedirectsHome() throws Exception {
+        MockHttpSession session = login("patient", "patient123");
+
+        mockMvc.perform(get("/patient/intake/complete")
+                        .session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/patient/home"));
+    }
+
+    @Test
+    void aCompletedConversationIsReportedOnceWithTheSameCaseIdOnRestart() throws Exception {
+        MockHttpSession session = login("patient", "patient123");
+
+        String current = JsonPath.read(postJson("/patient/intake/conversation/start", null, session), "$.question.id");
+        List<String> combined = new ArrayList<>(EXPECTED_IDS);
+        combined.addAll(DASHAVIDHA_IDS);
+        combined.addAll(AHARA_VIHARA_IDS);
+        for (int i = 1; i < combined.size(); i++) {
+            String response = postJson("/patient/intake/conversation/answer",
+                    "{\"questionId\":\"" + current + "\",\"answer\":\"answer\"}", session);
+            current = JsonPath.read(response, "$.question.id");
+        }
+        String completed = postJson("/patient/intake/conversation/answer",
+                "{\"questionId\":\"" + current + "\",\"answer\":\"final\"}", session);
+        assertThat(JsonPath.<Boolean>read(completed, "$.completed")).isTrue();
+        String caseId = JsonPath.read(completed, "$.caseId");
+
+        String restarted = postJson("/patient/intake/conversation/start", null, session);
+        assertThat(JsonPath.<Boolean>read(restarted, "$.completed")).isTrue();
+        assertThat(JsonPath.<String>read(restarted, "$.caseId")).isEqualTo(caseId);
+
+        String repeatedFinal = postJson("/patient/intake/conversation/answer",
+                "{\"questionId\":\"" + current + "\",\"answer\":\"again\"}", session);
+        assertThat(JsonPath.<Boolean>read(repeatedFinal, "$.completed")).isTrue();
+        assertThat(JsonPath.<String>read(repeatedFinal, "$.caseId")).isEqualTo(caseId);
+    }
 }

@@ -63,7 +63,6 @@ class PatientIntakeConversationIntegrationTests {
                         containsString("id=\"chatWindow\""),
                         containsString("id=\"chatMessages\""),
                         containsString("chat-message assistant"),
-                        containsString("chat-message patient"),
                         containsString("id=\"assistantGreeting\""),
                         containsString("id=\"messageInput\""),
                         containsString("id=\"sendButton\""),

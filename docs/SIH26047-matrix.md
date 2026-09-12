@@ -1,17 +1,18 @@
-# SIH26047 Theme Matrix — M5.2 (Physician + Interoperability + Clinical Trust)
+# SIH26047 Theme Matrix — M5.3 (Final Hardening & Delivery)
 
 Each row records a SIH26047 theme relevant to the patient kiosk journey and how
-M5.2 addresses it in this codebase. Where a theme is only partially covered or
-deliberately out of M5.2 scope, the reason is stated plainly. No claim is made
-for capabilities this project does not implement (ABHA/ABDM connectivity, live
-national LLM APIs, telemedicine referral networks, etc.). This is an honest
-review for the Hackathon checkpoint, not an overclaim.
+the final M5.3 build addresses it in this codebase. Where a theme is only
+partially covered or deliberately out of scope, the reason is stated plainly.
+No claim is made for capabilities this project does not implement
+(ABHA/ABDM connectivity, live national LLM APIs, telemedicine referral
+networks, etc.). This is an honest review for the Hackathon checkpoint, not an
+overclaim.
 
-Legend: PASS = shipped and verified in M5.2 · PARTIAL = addressed to a defined
-degree with the remainder explicitly out of M5.2 scope · NOT IN SCOPE = not
-part of M5.2 and no claim is made.
+Legend: PASS = shipped and verified in M5.3 · PARTIAL = addressed to a defined
+degree with the remainder explicitly out of M5.3 scope · NOT IN SCOPE = not
+part of this build and no claim is made.
 
-| # | SIH26047 theme (recurring themes across the theme list) | Verdict | What this build does in M5.2 |
+| # | SIH26047 theme (recurring themes across the theme list) | Verdict | What this build does (final M5.3) |
 |---|----------------------------------------------------------|---------|------------------------------|
 | 1 | Accessible, patient-friendly kiosk UI for underserved users | PASS | Journey stepper, large touch targets (`btn-lg`/`btn-lg-mobile`), progress text, `aria-live` status region, logical headings, clear plain-language copy. `identify`/`consent`/`intake`/`complete` rewritten in earlier milestones and retained. |
 | 2 | Multilingual patient interaction (Bharat languages) | PASS | Offline curated translations of all 25 deterministic clinical questions for Hindi, Telugu, Tamil, Kannada (in addition to English); language selector with native scripts; stored with its true `QuestionSource.TRANSLATED` and BCP-47 tag; the physician workspace surfaces the exact language and wording per answer. |
@@ -34,6 +35,26 @@ part of M5.2 and no claim is made.
 | 19 | Unified state healthcare data / EMR interoperability (FHIR) | PARTIAL | Deterministic, repeatable FHIR R4 Bundle export per completed case (collection, stable ids, no document binaries, standard HL7 code systems only, no fabricated LOINC/SNOMED/UCUM), with a documented interoperability boundary (`HisIntegrationBoundary`) whose current implementation is a no-op — a future ABDM/HIS adapter replaces that bean. No live interop is claimed. |
 | 20 | Offline-first usability in rural/low-power settings | PASS | Everything from intake to physician review and FHIR export runs offline against the local store; the offline H2 mode and Postgres mode both verified. |
 
+## M5.3 kill-test verification (nothing regressed from the matrix above)
+- Conversation resume that never wipes in-progress work; a completion page that
+  refuses to render when no completed caseId is in the session (redirects home).
+- Comma-decimal lab values ("8,4 mg/dL") are read as a decimal point, and
+  thousands-grouped values ("Hb 14,500 /mm3" style) are disambiguated as
+  thousands, never as decimals.
+- The red-flags card always renders — including an honest `None detected`
+  zero-state — so "not flagged" can never be confused with a skipped check.
+- Review double-submits are single-row-upsert and the DB uniqueness constraint
+  remains the final backstop; physician workspace, FHIR, and audit paths are
+  role-gated (physician reaching `/admin/**` gets 403).
+- Global `Referrer-Policy: no-referrer` response header on every page; the
+  Bootstrap CDN link additionally sends `referrerpolicy="no-referrer"`.
+- Anonymous `/actuator/health` returns only the aggregate status (no db/disk
+  detail) thanks to `show-details: when-authorized`; only `health` and `info`
+  are exposed.
+- Live FHIR export is byte-for-byte repeatable with `application/fhir+json`
+  and `X-Fhir-Version: 4.0.1`, and every code system resolves to a real
+  HL7/UCUM/UUID/terminology namespace (no fabricated LOINC/SNOMED).
+
 ## Honest limitations recorded explicitly
 - Red-flag detection matches English keywords only; translations of urgent-sign
   detection are not performed on non-English answer text.
@@ -45,11 +66,13 @@ part of M5.2 and no claim is made.
 - DOCUMENT processing is a local demo (optional provider-gated), extraction can
   fail honestly (ENCRYPTED/UNREADABLE), and findings are staged with the
   caveat "may contain errors and must be clinically verified".
-- Duplicate-word grouping in chronic conditions is off in M5.2; nothing is
+- Duplicate-word grouping in chronic conditions is off; nothing is
   presented as assumed.
 - Physician review decisions are stored per answer with the original evidence
   preserved; amended wording is physician-entered and never overwrites what the
   patient said.
+- A/Q every claim above is exercised by the live browser-level kill test
+  in `docs/M5.3-final-hardening-and-kill-test.md`.
 
-Generated for the SIH26047 hackathon checkpoint (M5.2), Trento-style honest
+Generated for the SIH26047 hackathon checkpoint (M5.3), Trento-style honest
 self-assessment. See `docs/M5.2-physician-interoperability-clinical-trust-audit.md`.

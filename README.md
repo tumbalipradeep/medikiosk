@@ -56,6 +56,20 @@ transmission (any real adapter is a no-op until configured and audited).
 Every review decision is audited; unexpected FHIR export failures are audited
 and surfaced as 500s. See `docs/M5.2-physician-interoperability-clinical-trust-audit.md`.
 
+**M5.3 — Final hardening & kill test (complete).** Adversarial end-to-end kill
+test of every phase with the honest-demo hygiene rules enforced: a half-answer
+search-and-resume (45 seconds of case-taking lost zero), a completion endpoint
+that rendering with a stale or tampered session, interquartile comma-decimal
+lab normalization that reads "8,4 mg/dL" as a decimal point and never as a
+thousands group, a red-flags card that always renders with an honest `None
+detected` zero-state, review double-submits that cannot create a second row,
+CSRF-secured conversation/voice/review endpoints with the global
+`Referrer-Policy: no-referrer` header, `show-details: when-authorized` health
+meters and a no-detail health aggregate for anonymous browsers, and a live FHIR
+bundle that is byte-for-byte repeatable with no fabricated code systems. Zero
+end-to-end defects were open; the milestone closes only after the full clean
+regression and a final browser-level re-run.
+
 MediKiosk currently includes:
 
 - Authentication/security

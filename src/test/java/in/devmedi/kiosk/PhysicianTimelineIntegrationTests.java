@@ -41,6 +41,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -245,6 +246,21 @@ class PhysicianTimelineIntegrationTests {
                     assertThat(view).isNotNull();
                     assertThat(((in.devmedi.kiosk.module.physician.workspace.WorkspaceView) view).documents()).hasSize(2);
                 });
+    }
+
+    @Test
+    void workspaceAlwaysRendersTheRedFlagCardWithAnHonestZeroState() throws Exception {
+        String benign = createCase("Everything is normal, no complaints");
+        mockMvc.perform(get("/physician/cases/" + benign).session(loginPhysician()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Clinical Red Flags")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("None detected")));
+
+        String flagged = createCase("Severe crushing chest pain radiating to the left arm for two hours");
+        mockMvc.perform(get("/physician/cases/" + flagged).session(loginPhysician()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Clinical Red Flags")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Urgent severity")));
     }
 
     @Test

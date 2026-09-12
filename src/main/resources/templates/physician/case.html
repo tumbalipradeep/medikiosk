@@ -56,14 +56,18 @@
                     </div>
                 </div>
 
-                <div class="card shadow-sm mb-4" th:if="${workspace.totalFlags > 0}">
+                <div class="card shadow-sm mb-4">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h2 class="h5 fw-bold mb-0">Clinical Red Flags</h2>
-                        <span class="badge text-bg-danger" th:text="${workspace.overallSeverityLabel} + ' severity'">Urgent severity</span>
+                        <span class="badge text-bg-danger" th:if="${workspace.totalFlags > 0}"
+                              th:text="${workspace.overallSeverityLabel} + ' severity'">Urgent severity</span>
+                        <span class="badge text-bg-success" th:if="${workspace.totalFlags == 0}">None detected</span>
                     </div>
                     <div class="card-body py-3">
                         <p class="small text-muted mb-2">System-generated concerns derived deterministically from the patient's own words. Clinical review required; this is not a diagnosis.</p>
-                        <div th:each="section : ${workspace.sections}">
+                        <p class="small text-muted mb-2"
+                           th:if="${workspace.totalFlags == 0}">No red-flag warnings were triggered by the recorded answers. This is not a medical clearance.</p>
+                        <div th:each="section : ${workspace.sections}" th:if="${workspace.totalFlags > 0}">
                             <div th:each="entry : ${section.answers}" th:if="${!#lists.isEmpty(entry.flags)}">
                                 <div class="border-start border-3 border-danger ps-3 py-1 mb-2">
                                     <div th:each="flag : ${entry.flags}">

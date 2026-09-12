@@ -52,6 +52,11 @@ public class PhysicianReviewService {
     /**
      * Saves (or replaces) a physician review decision for one answer.
      *
+     * <p>The read-modify-write cycle is serialized per {@code (caseId,
+     * answerOrder)} so a rapid repeated or concurrent submission upserts a
+     * single row instead of racing into a duplicate-key violation. The unique
+     * {@code (case_id, answer_order)} key remains the final guard.</p>
+     *
      * @return the persisted entry
      * @throws CaseNotFoundException       if the case does not exist
      * @throws ReviewValidationException   if the request is invalid
@@ -61,35 +66,37 @@ public class PhysicianReviewService {
                                            int answerOrder,
                                            ReviewRequest request,
                                            String reviewerUsername) {
-        CompletedCaseEntity caseEntity = completedCaseRepository.findByCaseId(caseId)
-                .orElseThrow(() -> new CaseNotFoundException(caseId));
+        synchronized (("physician-review:" + caseId + ":" + answerOrder).intern()) {
+            CompletedCaseEntity caseEntity = completedCaseRepository.findByCaseId(caseId)
+                    .orElseThrow(() -> new CaseNotFoundException(caseId));
 
-        List<CompletedCaseAnswerEntity> answers =
-                answerRepository.findByCaseIdOrderByAnswerOrder(caseId);
-        if (answerOrder < 0 || answerOrder >= answers.size()) {
-            throw new ReviewValidationException("Answer order " + answerOrder
-                    + " is outside the valid range 0.." + (answers.size() - 1));
+            List<CompletedCaseAnswerEntity> answers =
+                    answerRepository.findByCaseIdOrderByAnswerOrder(caseId);
+            if (answerOrder < 0 || answerOrder >= answers.size()) {
+                throw new ReviewValidationException("Answer order " + answerOrder
+                        + " is outside the valid range 0.." + (answers.size() - 1));
+            }
+
+            ReviewDecision decision = parseDecision(request.decision());
+            String amendedText = normalizeAmendedText(decision, request.amendedText());
+            String rationale = normalizeRationale(request.rationale());
+
+            Optional<PhysicianReviewEntry> existing = reviewRepository
+                    .findByCompletedCase_CaseIdAndAnswerOrder(caseId, answerOrder);
+            PhysicianReviewEntry entry = existing.orElseGet(() ->
+                    PhysicianReviewEntry.of(caseEntity, answerOrder, decision,
+                            amendedText, rationale, reviewerUsername));
+            if (existing.isPresent()) {
+                entry.apply(decision, amendedText, rationale, reviewerUsername);
+            }
+            reviewRepository.save(entry);
+
+            auditService.record(AuditEventCommand.physicianReview(
+                    reviewerUsername, "PHYSICIAN", caseId,
+                    decision.name(), null, AuditOutcome.SUCCESS, null));
+
+            return entry;
         }
-
-        ReviewDecision decision = parseDecision(request.decision());
-        String amendedText = normalizeAmendedText(decision, request.amendedText());
-        String rationale = normalizeRationale(request.rationale());
-
-        Optional<PhysicianReviewEntry> existing = reviewRepository
-                .findByCompletedCase_CaseIdAndAnswerOrder(caseId, answerOrder);
-        PhysicianReviewEntry entry = existing.orElseGet(() ->
-                PhysicianReviewEntry.of(caseEntity, answerOrder, decision,
-                        amendedText, rationale, reviewerUsername));
-        if (existing.isPresent()) {
-            entry.apply(decision, amendedText, rationale, reviewerUsername);
-        }
-        reviewRepository.save(entry);
-
-        auditService.record(AuditEventCommand.physicianReview(
-                reviewerUsername, "PHYSICIAN", caseId,
-                decision.name(), null, AuditOutcome.SUCCESS, null));
-
-        return entry;
     }
 
     /**

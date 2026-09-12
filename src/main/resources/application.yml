@@ -35,7 +35,9 @@ management:
         include: health,info
   endpoint:
     health:
-      show-details: always
+      # Details (db, disk, etc.) are only shown to authenticated users; anonymous
+      # callers see the aggregate status only.
+      show-details: when-authorized
       probes:
         enabled: true
 

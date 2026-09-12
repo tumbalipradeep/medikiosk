@@ -23,8 +23,12 @@
                 <h1 class="display-5 fw-bold mb-3 medikiosk-title">MediKiosk</h1>
                 <h2 class="h5 text-muted mb-4">Patient Case-Taking Platform</h2>
                 <hr class="my-4">
-                <p class="lead mb-1">Foundation Ready</p>
-                <p class="text-muted mb-0">Application Status: <span class="fw-semibold text-success">UP</span></p>
+                <p class="lead mb-1">Local demo deployment</p>
+                <p class="text-muted mb-0">Application Status: <span id="appStatus" class="badge bg-secondary">Checking&hellip;</span></p>
+                <div class="mt-2 small text-secondary">
+                    Kiosk operates with a local, non-ABHA identity. Nothing is transmitted to
+                    ABDM or an external HIS.
+                </div>
                 <div class="mt-4 small text-secondary" id="kioskMeta"></div>
                 <div class="mt-4">
                     <a th:href="@{/login}" class="btn btn-primary">Sign in</a>

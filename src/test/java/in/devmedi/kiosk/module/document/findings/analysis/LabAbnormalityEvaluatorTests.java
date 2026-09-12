@@ -60,6 +60,16 @@ class LabAbnormalityEvaluatorTests {
     }
 
     @Test
+    void commaDecimalValueIsTreatedAsDecimalPointNotThousands() {
+        assertThat(LabAbnormalityEvaluator.evaluate("13,5", "13.0 - 17.0"))
+                .isEqualTo(AbnormalityStatus.NORMAL);
+        assertThat(LabAbnormalityEvaluator.evaluate("2,9", "3.5 - 6.0"))
+                .isEqualTo(AbnormalityStatus.LOW);
+        assertThat(LabAbnormalityEvaluator.evaluate("4,0", "3.5 - 6.0"))
+                .isEqualTo(AbnormalityStatus.NORMAL);
+    }
+
+    @Test
     void trailingUnitTextAfterRangeIsIgnored() {
         assertThat(LabAbnormalityEvaluator.evaluate("2.5", "1.5 - 4.5 lakh/cu.mm"))
                 .isEqualTo(AbnormalityStatus.NORMAL);

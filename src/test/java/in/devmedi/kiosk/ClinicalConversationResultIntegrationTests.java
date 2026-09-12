@@ -205,7 +205,7 @@ class ClinicalConversationResultIntegrationTests {
     }
 
     @Test
-    void aFreshStartResetsTheCapturedConversation() throws Exception {
+    void aStartMidConversationResumesAndOnlyRestartClearsTheCapturedConversation() throws Exception {
         MockHttpSession session = patientSession();
         String chief = JsonPath.read(start(session), "$.question.id");
         answer(session, chief, "first conversation");
@@ -213,9 +213,24 @@ class ClinicalConversationResultIntegrationTests {
         ClinicalConversationResult afterFirst = resultOf(session);
         assertThat(afterFirst.size()).isEqualTo(1);
 
-        start(session);
-        ClinicalConversationResult afterReset = resultOf(session);
-        assertThat(afterReset).isNotSameAs(afterFirst);
-        assertThat(afterReset.isEmpty()).isTrue();
+        // Re-starting mid-conversation must RESUME (never wipe a patient's work).
+        String resume = start(session);
+        assertThat(JsonPath.<String>read(resume, "$.question.id")).isEqualTo("hpi_onset");
+        assertThat(JsonPath.<Boolean>read(resume, "$.completed")).isFalse();
+
+        ClinicalConversationResult afterResume = resultOf(session);
+        assertThat(afterResume).isSameAs(afterFirst);
+        assertThat(afterResume.size()).isEqualTo(1);
+
+        // The explicit restart endpoint is the only intentional reset.
+        mockMvc.perform(post("/patient/intake/conversation/restart")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        ClinicalConversationResult afterRestart = resultOf(session);
+        assertThat(afterRestart).isNotSameAs(afterFirst);
+        assertThat(afterRestart.isEmpty()).isTrue();
     }
 }

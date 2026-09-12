@@ -29,7 +29,7 @@ class MediKioskApplicationTests {
                 .andExpect(view().name("home"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("MediKiosk")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Patient Case-Taking Platform")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Foundation Ready")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Local demo deployment")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Application Status:")));
     }
 

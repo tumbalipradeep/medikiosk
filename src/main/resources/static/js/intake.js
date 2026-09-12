@@ -136,13 +136,14 @@
         }
 
         function postJson(url, body) {
+            var headers = {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            };
+            headers[csrfHeaderName()] = csrfToken();
             return fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken()
-                },
+                headers: headers,
                 body: body === undefined ? undefined : JSON.stringify(body)
             });
         }
@@ -340,11 +341,14 @@
             reviewPanel.classList.remove('d-none');
             var progress = document.getElementById('reviewProgressText');
             if (progress) {
-                progress.textContent = '25 / 25';
+                progress.textContent = progressState.answered + ' / ' + progressState.total;
             }
             var finish = document.getElementById('finishButton');
             if (finish) {
-                finish.href = '/patient/intake/complete?caseId=' + encodeURIComponent(caseId);
+                // No case reference is placed in the URL; the completion page reads it
+                // from the server-side session, keeping PHI out of query strings and
+                // the browser history.
+                finish.href = '/patient/intake/complete';
             }
             showDocumentUpload();
             loadReviewSummary(caseId);
