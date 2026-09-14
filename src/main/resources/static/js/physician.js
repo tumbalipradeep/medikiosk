@@ -168,6 +168,195 @@
 
     updateReviewedCount();
 
+    // ─── Medication interaction screening ──────────────────────
+
+    var SEVERITY_CLASS = {
+        'CONTRAINDICATED': 'text-bg-danger',
+        'MAJOR':           'text-bg-warning',
+        'MODERATE':        'text-bg-info',
+        'MINOR':           'text-bg-secondary'
+    };
+
+    function medUrl(caseId) {
+        return '/physician/cases/' + encodeURIComponent(caseId) + '/medications';
+    }
+
+    function medActionUrl(caseId, name, action) {
+        return medUrl(caseId) + '/' + encodeURIComponent(name) + '/' + action;
+    }
+
+    function severityBadgeClass(severity) {
+        return SEVERITY_CLASS[severity] || 'text-bg-secondary';
+    }
+
+    function renderMedicationReport(report) {
+        var badge = document.getElementById('overallSeverityBadge');
+        if (badge) {
+            if (report.overallSeverity) {
+                badge.className = 'badge ' + severityBadgeClass(report.overallSeverity);
+                badge.textContent = report.overallSeverity;
+            } else {
+                badge.className = 'badge text-bg-success';
+                badge.textContent = 'No interactions';
+            }
+        }
+
+        var list = document.getElementById('medList');
+        var interactions = document.getElementById('interactionsList');
+        if (list) {
+            list.innerHTML = '';
+            if (!report.medications || report.medications.length === 0) {
+                var empty = document.createElement('p');
+                empty.className = 'small text-muted mb-0';
+                empty.textContent = 'No medications on the case screen.';
+                list.appendChild(empty);
+            } else {
+                var ul = document.createElement('ul');
+                ul.className = 'list-unstyled mb-0';
+                report.medications.forEach(function (med) {
+                    var li = document.createElement('li');
+                    li.className = 'd-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom py-2';
+                    var left = document.createElement('div');
+                    var name = document.createElement('span');
+                    name.className = 'fw-semibold';
+                    name.textContent = med.displayName;
+                    left.appendChild(name);
+                    if (med.classKey) {
+                        var cls = document.createElement('span');
+                        cls.className = 'badge text-bg-light border text-muted ms-2';
+                        cls.textContent = med.classKey;
+                        left.appendChild(cls);
+                    }
+                    if (med.dose || med.frequency) {
+                        var detail = document.createElement('div');
+                        detail.className = 'small text-muted mt-1';
+                        var parts = [];
+                        if (med.dose) parts.push(med.dose);
+                        if (med.frequency) parts.push(med.frequency);
+                        detail.textContent = parts.join(' \u00b7 ');
+                        left.appendChild(detail);
+                    }
+                    var source = document.createElement('div');
+                    source.className = 'small text-muted';
+                    var srcLabels = {
+                        'PATIENT_HISTORY': 'Patient history',
+                        'DOCUMENT_FINDING': 'Document finding',
+                        'PHYSICIAN_ENTERED': 'Physician added'
+                    };
+                    source.textContent = srcLabels[med.source] || med.source;
+                    left.appendChild(source);
+                    li.appendChild(left);
+
+                    var btnGroup = document.createElement('div');
+                    btnGroup.className = 'd-flex gap-1';
+                    if (med.physicianAdded) {
+                        var supBtn = document.createElement('button');
+                        supBtn.type = 'button';
+                        supBtn.className = 'btn btn-sm btn-outline-danger';
+                        supBtn.textContent = 'Remove';
+                        supBtn.addEventListener('click', function () {
+                            request(medActionUrl(CASE_ID, med.displayName, 'suppress'), 'POST')
+                                .then(function (res) {
+                                    if (!res.ok) return Promise.reject();
+                                    return res.json();
+                                })
+                                .then(renderMedicationReport)
+                                .catch(function () { alert('Could not remove medicine.'); });
+                        });
+                        btnGroup.appendChild(supBtn);
+                    } else {
+                        var exclBtn = document.createElement('button');
+                        exclBtn.type = 'button';
+                        exclBtn.className = 'btn btn-sm btn-outline-secondary';
+                        exclBtn.textContent = 'Exclude';
+                        exclBtn.title = 'Remove this sourced medicine from the case screen.';
+                        exclBtn.addEventListener('click', function () {
+                            request(medActionUrl(CASE_ID, med.displayName, 'suppress'), 'POST')
+                                .then(function (res) {
+                                    if (!res.ok) return Promise.reject();
+                                    return res.json();
+                                })
+                                .then(renderMedicationReport)
+                                .catch(function () { alert('Could not exclude medicine.'); });
+                        });
+                        btnGroup.appendChild(exclBtn);
+                    }
+                    li.appendChild(btnGroup);
+                    ul.appendChild(li);
+                });
+                list.appendChild(ul);
+            }
+        }
+
+        if (interactions) {
+            interactions.innerHTML = '';
+            if (!report.interactions || report.interactions.length === 0) {
+                var noInt = document.createElement('p');
+                noInt.className = 'small text-muted mb-0';
+                noInt.textContent = 'No screened interactions found between the listed medicines.';
+                interactions.appendChild(noInt);
+            } else {
+                report.interactions.forEach(function (intx) {
+                    var card = document.createElement('div');
+                    card.className = 'mb-2 p-2 border rounded';
+                    var head = document.createElement('div');
+                    head.className = 'd-flex flex-wrap align-items-center gap-2 mb-1';
+                    var sevBadge = document.createElement('span');
+                    sevBadge.className = 'badge ' + severityBadgeClass(intx.severity);
+                    sevBadge.textContent = intx.severity;
+                    head.appendChild(sevBadge);
+                    var pair = document.createElement('span');
+                    pair.className = 'fw-semibold';
+                    pair.textContent = intx.drugA + ' + ' + intx.drugB;
+                    head.appendChild(pair);
+                    card.appendChild(head);
+                    var desc = document.createElement('div');
+                    desc.className = 'small text-muted mb-1';
+                    desc.textContent = intx.description;
+                    card.appendChild(desc);
+                    var guid = document.createElement('div');
+                    guid.className = 'small';
+                    guid.innerHTML = '<strong>Guidance:</strong> ' + intx.guidance;
+                    card.appendChild(guid);
+                    interactions.appendChild(card);
+                });
+            }
+        }
+    }
+
+    if (CASE_ID && document.getElementById('medList')) {
+        request(medUrl(CASE_ID), 'GET')
+            .then(function (res) {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(renderMedicationReport)
+            .catch(function () {
+                var badge = document.getElementById('overallSeverityBadge');
+                if (badge) { badge.className = 'badge text-bg-secondary'; badge.textContent = 'Not available'; }
+            });
+    }
+
+    var addMedForm = document.getElementById('addMedicationForm');
+    if (addMedForm) {
+        addMedForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var name = document.getElementById('medNameInput').value.trim();
+            if (!name) return;
+            request(medUrl(CASE_ID), 'POST', {
+                name: name,
+                dose: document.getElementById('medDoseInput').value.trim(),
+                frequency: document.getElementById('medFreqInput').value.trim()
+            }).then(function (res) {
+                if (!res.ok) return res.json().then(function (b) { throw new Error(b.message || b.error || 'Add failed'); });
+                return res.json();
+            }).then(function (report) {
+                renderMedicationReport(report);
+                addMedForm.reset();
+            }).catch(function (err) { alert(err.message || 'Could not add medicine.'); });
+        });
+    }
+
     // ─── Document extraction / findings / detail ──────────────────────
 
     function plainTextDiv(text) {
@@ -746,5 +935,24 @@
                     timelineBody.appendChild(plainTextDiv('Could not load the clinical timeline for this case.'));
                 }
             });
+    }
+
+    var releaseBtn = document.getElementById('releaseCaseBtn');
+    if (releaseBtn) {
+        releaseBtn.addEventListener('click', function () {
+            if (!window.confirm('Release this case back to the shared pool?')) {
+                return;
+            }
+            request('/physician/cases/' + encodeURIComponent(CASE_ID) + '/unassign', 'POST')
+                .then(function (res) {
+                    if (!res.ok) {
+                        throw new Error('Could not release case.');
+                    }
+                    window.location.href = '/physician/home';
+                })
+                .catch(function () {
+                    alert('Could not release this case back to the queue.');
+                });
+        });
     }
 })();

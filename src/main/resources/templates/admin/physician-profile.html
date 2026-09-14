@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Physician Profile - MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Physician Profile - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/nav :: authnav}"></div>
+
+<main class="flex-grow-1 py-5">
+    <div class="container" style="max-width: 860px;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+                <h1 class="h3 fw-bold mb-1 medikiosk-title">Physician Profile</h1>
+                <p class="text-muted mb-0">
+                    Maintaining <strong th:text="${physicianUsername}">physician</strong>.
+                </p>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm" th:href="@{/admin/accounts(role='PHYSICIAN')}">Back to accounts</a>
+        </div>
+
+        <div th:if="${success}" class="alert alert-success" role="alert" th:text="${success}">Saved.</div>
+        <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}">Error.</div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form th:action="@{'/admin/physicians/' + ${physicianId} + '/profile'}" method="post" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="qualification">Qualification</label>
+                        <input class="form-control" id="qualification" name="qualification" maxlength="300"
+                               th:value="${profile.qualification}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="designation">Designation</label>
+                        <input class="form-control" id="designation" name="designation" maxlength="200"
+                               th:value="${profile.designation}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="department">Department</label>
+                        <input class="form-control" id="department" name="department" maxlength="200"
+                               th:value="${profile.department}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="organization">Hospital / organization</label>
+                        <input class="form-control" id="organization" name="organization" maxlength="300"
+                               th:value="${profile.organization}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="registrationNumber">Registration number</label>
+                        <input class="form-control" id="registrationNumber" name="registrationNumber" maxlength="60"
+                               th:value="${profile.registrationNumber}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="email">Email</label>
+                        <input class="form-control" id="email" name="email" type="email" maxlength="120"
+                               th:value="${profile.email}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="phone">Phone</label>
+                        <input class="form-control" id="phone" name="phone" maxlength="30"
+                               th:value="${profile.phone}">
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary" type="submit">Save profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-white border-top py-3 text-center text-muted small">
+    &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot; SIH26047
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -10,6 +10,7 @@ import in.devmedi.kiosk.module.fhir.interop.FhirExportContract;
 import in.devmedi.kiosk.module.fhir.interop.FhirExportTransport;
 import in.devmedi.kiosk.module.fhir.model.FhirBundle;
 import in.devmedi.kiosk.module.fhir.service.FhirCaseExportService;
+import in.devmedi.kiosk.module.physician.assignment.CaseAssignmentService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,9 @@ class PhysicianFhirControllerFailureAuditUnitTest {
     private FhirExportTransport transport;
 
     @Mock
+    private CaseAssignmentService assignmentService;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -61,7 +65,7 @@ class PhysicianFhirControllerFailureAuditUnitTest {
 
     @BeforeEach
     void setUp() {
-        controller = new PhysicianFhirController(exportService, auditService, transport);
+        controller = new PhysicianFhirController(exportService, auditService, transport, assignmentService);
         actor = new ApplicationUserDetails(
                 new User("physician", "irrelevant", "Dr. Physician", Role.PHYSICIAN));
         when(request.getRequestURI()).thenReturn("/physician/cases/case-a/fhir");

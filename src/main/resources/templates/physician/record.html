@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Clinical Record - MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Clinical Record - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100"
+      th:attr="data-case-id=${caseId},
+               data-csrf=${_csrf != null ? _csrf.token : ''},
+               data-csrf-header=${_csrf != null ? _csrf.headerName : ''}">
+<div th:replace="~{fragments/nav :: authnav}"></div>
+
+<main class="flex-grow-1 py-5">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small">
+                        <li class="breadcrumb-item"><a th:href="@{/physician/home}">Physician Dashboard</a></li>
+                        <li class="breadcrumb-item"><a th:href="@{'/physician/cases/' + ${caseId}}">Case Workspace</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Clinical Record</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 fw-bold mb-1 medikiosk-title">Clinical Record</h1>
+                <p class="text-muted mb-0">Red-flag triage actions, the physician-reviewed clinical summary, and the final consultation.</p>
+            </div>
+            <span class="badge text-bg-secondary" th:text="'Case ' + ${caseId}">Case case-uuid</span>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h2 class="h5 fw-bold mb-0">Red-Flag Triage</h2>
+                        <span class="badge text-bg-danger" th:if="${flaggedCount > 0}"
+                              th:text="${overallSeverity} + ' severity'">URGENT</span>
+                        <span class="badge text-bg-success" th:if="${flaggedCount == 0}">None flagged</span>
+                    </div>
+                    <div class="card-body py-3">
+                        <p class="small text-muted mb-3">
+                            Flags recorded by the kiosk when intake answers matched deterministic warning rules.
+                            Take a documented clinical action on each one; a note is kept for accountability. An action is a review decision, never a diagnosis.
+                        </p>
+                        <div th:if="${!hasAssessments}" class="text-muted small">
+                            No flags were recorded for this case, so there is nothing to triage.
+                        </div>
+                        <div th:each="assessment : ${assessments}" class="card border mb-2 triage-card"
+                             th:attr="data-flag-id=${assessment.flagId}">
+                            <div class="card-body py-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <span class="badge text-bg-danger me-1" th:text="${assessment.severity}">URGENT</span>
+                                        <span class="fw-semibold" th:text="${assessment.flagId}">flag_id</span>
+                                        <span class="badge text-bg-light border text-muted ms-1"
+                                              th:text="${assessment.source}">SYSTEM_DETECTED</span>
+                                    </div>
+                                    <span class="badge" data-triage-badge
+                                          th:classappend="${assessment.action.name() == 'SEEN'} ? 'text-bg-secondary' : (${assessment.action.name() == 'ESCALATED'} ? 'text-bg-warning' : (${assessment.action.name() == 'CLEARED'} ? 'text-bg-info' : 'text-bg-success'))"
+                                          th:text="${assessment.action}">SEEN</span>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    Detected at <span th:text="${#temporals.format(assessment.assessedAt, 'dd MMM yyyy HH:mm')}">now</span>
+                                    <span th:if="${assessment.assessedBy != null}"
+                                          th:text="' &middot; assessed by ' + ${assessment.assessedBy.displayName}"> &middot; assessed by</span>
+                                </div>
+                                <div class="small fst-italic mt-1" th:if="${assessment.note}"
+                                     th:text="'Note: ' + ${assessment.note}">Note</div>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-sm-6">
+                                        <input type="text" class="form-control form-control-sm triage-note"
+                                               placeholder="Note for this action (optional)">
+                                    </div>
+                                    <div class="col-sm-6 d-flex gap-2 flex-wrap">
+                                        <button type="button" class="btn btn-sm btn-outline-success triage-action"
+                                                data-action="RESOLVED">Resolve</button>
+                                        <button type="button" class="btn btn-sm btn-outline-warning triage-action"
+                                                data-action="ESCALATED">Escalate</button>
+                                        <button type="button" class="btn btn-sm btn-outline-info triage-action"
+                                                data-action="CLEARED">Clear</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h2 class="h5 fw-bold mb-0">Consultation (final clinical record)</h2>
+                        <p class="small text-muted mb-0">Entirely physician-authored. AI summaries are never copied here without your explicit action.</p>
+                    </div>
+                    <div class="card-body py-3">
+                        <div th:if="${hasConsultation}" class="mb-3">
+                            <span class="badge"
+                                  th:classappend="${consultation.status.name() == 'FINALIZED'} ? 'text-bg-success' : 'text-bg-secondary'"
+                                  th:text="${consultation.status}">DRAFT</span>
+                            <span class="small text-muted ms-1"
+                                  th:if="${consultation.status.name() == 'FINALIZED'}"
+                                  th:text="'Finalized ' + ${#temporals.format(consultation.finalizedAt, 'dd MMM yyyy HH:mm')}">finalized</span>
+                        </div>
+                        <form class="consultation-form" data-case-id="${caseId}">
+                            <div class="mb-2">
+                                <label class="form-label small mb-1" for="cs-assessment">Assessment</label>
+                                <textarea class="form-control form-control-sm" id="cs-assessment" name="assessment" rows="3"
+                                          th:text="${hasConsultation ? consultation.assessment : ''}"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1" for="cs-plan">Plan</label>
+                                <textarea class="form-control form-control-sm" id="cs-plan" name="plan" rows="3"
+                                          th:text="${hasConsultation ? consultation.plan : ''}"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-1" for="cs-advice">Advice to patient</label>
+                                <textarea class="form-control form-control-sm" id="cs-advice" name="advice" rows="2"
+                                          th:text="${hasConsultation ? consultation.advice : ''}"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small mb-1" for="cs-follow-up">Follow-up</label>
+                                <input type="text" class="form-control form-control-sm" id="cs-follow-up" name="followUp"
+                                       th:value="${hasConsultation && consultation.followUp != null ? consultation.followUp : ''}">
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-sm btn-primary consultation-save-btn">Save draft</button>
+                                <button type="button" class="btn btn-sm btn-success consultation-finalize-btn">Finalize record</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h2 class="h5 fw-bold mb-0">Clinical Summary (physician review)</h2>
+                        <p class="small text-muted mb-0">Draft sections are seeded from the intake. Review, amend, and accept each one before it counts as the physician's summary.</p>
+                    </div>
+                    <div class="card-body py-3">
+                        <div th:if="${!hasSummaries}" class="text-muted small">
+                            No summary sections exist yet for this case.
+                        </div>
+                        <div th:each="summary : ${summaries}" class="border-bottom py-3 summary-section"
+                             th:attr="data-section=${summary.section}">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <h3 class="h6 fw-bold mb-0 text-uppercase text-muted small"
+                                th:text="${@clinicalSummaryService.sectionLabel(summary.section)}">Section</h3>
+                                <span class="badge summary-status"
+                                      th:classappend="${summary.status.name() == 'ACCEPTED'} ? 'text-bg-success' : (${summary.status.name() == 'REJECTED'} ? 'text-bg-danger' : 'text-bg-secondary')"
+                                      th:text="${summary.status}">DRAFT</span>
+                            </div>
+                            <div class="small text-muted mb-1"
+                                 th:text="'Provenance: ' + ${summary.provenance}">Provenance</div>
+                            <textarea class="form-control form-control-sm mb-2 summary-content" rows="3"
+                                      th:text="${summary.content}">summary content</textarea>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm btn-success summary-accept-btn">Accept as final</button>
+                                <button type="button" class="btn btn-sm btn-warning summary-save-btn">Save amendment</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger summary-reject-btn">Reject</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-white border-top py-3 text-center text-muted small">
+    &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot; SIH26047
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+<script th:src="@{/js/record.js}"></script>
+</body>
+</html>

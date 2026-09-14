@@ -26,4 +26,8 @@ public record CompletedCase(String id, ClinicalConversationResult result, Long u
     public static CompletedCase withNewId(ClinicalConversationResult result, Long userId) {
         return new CompletedCase("case-" + UUID.randomUUID(), result, userId);
     }
+
+    public CompletedCase withUserId(Long userId) {
+        return new CompletedCase(id, result, userId);
+    }
 }

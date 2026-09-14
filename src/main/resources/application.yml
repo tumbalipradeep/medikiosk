@@ -47,6 +47,16 @@ logging:
     in.devmedi.kiosk: INFO
 
 medikiosk:
+  security:
+    # Account lockout and password-strength policy (all overridable via env:
+    # MEDIKIOSK_SECURITY_MAXFAILED... etc.). Dev-friendly defaults; harden in production.
+    max-failed-login-attempts: 5
+    lockout-duration-minutes: 15
+    min-password-length: 10
+    min-temporary-password-length: 12
+    require-uppercase: true
+    require-digit: true
+    require-special: true
   documents:
     # Local filesystem location where uploaded clinical document binaries are stored.
     upload-dir: ${MEDIKIOSK_UPLOAD_DIR:upload/clinical-documents}

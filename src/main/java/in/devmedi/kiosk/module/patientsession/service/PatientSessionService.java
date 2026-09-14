@@ -4,6 +4,7 @@ import in.devmedi.kiosk.module.auth.entity.User;
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.consent.entity.ConsentType;
 import in.devmedi.kiosk.module.consent.service.ConsentService;
+import in.devmedi.kiosk.module.encounter.EncounterService;
 import in.devmedi.kiosk.module.patientsession.entity.PatientSession;
 import in.devmedi.kiosk.module.patientsession.entity.PatientSessionStatus;
 import in.devmedi.kiosk.module.patientsession.repository.PatientSessionRepository;
@@ -16,13 +17,16 @@ public class PatientSessionService {
     private final PatientSessionRepository patientSessionRepository;
     private final UserRepository userRepository;
     private final ConsentService consentService;
+    private final EncounterService encounterService;
 
     public PatientSessionService(PatientSessionRepository patientSessionRepository,
                                  UserRepository userRepository,
-                                 ConsentService consentService) {
+                                 ConsentService consentService,
+                                 EncounterService encounterService) {
         this.patientSessionRepository = patientSessionRepository;
         this.userRepository = userRepository;
         this.consentService = consentService;
+        this.encounterService = encounterService;
     }
 
     /**
@@ -31,6 +35,9 @@ public class PatientSessionService {
      *
      * <p>The single-active check and the insert are serialized per user so two
      * concurrent start requests can never create more than one active session.</p>
+     *
+     * <p>An in-progress clinical encounter is created alongside the session, so
+     * the whole visit (intake + review lifecycle) is tracked from the start.</p>
      *
      * @return the newly created active session
      */
@@ -45,7 +52,9 @@ public class PatientSessionService {
             }
             User user = userRepository.getReferenceById(userId);
             PatientSession session = new PatientSession(user);
-            return patientSessionRepository.save(session);
+            patientSessionRepository.save(session);
+            encounterService.startOrGetCurrent(userId);
+            return session;
         }
     }
 

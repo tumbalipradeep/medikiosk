@@ -13,6 +13,9 @@ import in.devmedi.kiosk.module.consent.repository.ConsentRepository;
 import in.devmedi.kiosk.module.document.findings.DocumentWorkspaceItem;
 import in.devmedi.kiosk.module.document.repository.ClinicalDocumentRepository;
 import in.devmedi.kiosk.module.his.HisIntegrationBoundary;
+import in.devmedi.kiosk.module.physician.assignment.CaseAssignment;
+import in.devmedi.kiosk.module.physician.assignment.CaseAssignmentRepository;
+import in.devmedi.kiosk.module.physician.assignment.AssignmentStatus;
 import in.devmedi.kiosk.module.physician.entity.CompletedCaseEntity;
 import in.devmedi.kiosk.module.physician.entity.CompletedCaseAnswerEntity;
 import in.devmedi.kiosk.module.physician.repository.CompletedCaseAnswerRepository;
@@ -26,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -55,6 +59,7 @@ public class PhysicianCaseWorkspaceService {
     private final LanguageService languageService;
     private final PhysicianTimelineService timelineService;
     private final HisIntegrationBoundary hisIntegrationBoundary;
+    private final CaseAssignmentRepository assignmentRepository;
 
     public PhysicianCaseWorkspaceService(CompletedCaseRepository completedCaseRepository,
                                          CompletedCaseAnswerRepository answerRepository,
@@ -65,7 +70,8 @@ public class PhysicianCaseWorkspaceService {
                                          RedFlagEvaluator redFlagEvaluator,
                                          LanguageService languageService,
                                          PhysicianTimelineService timelineService,
-                                         HisIntegrationBoundary hisIntegrationBoundary) {
+                                         HisIntegrationBoundary hisIntegrationBoundary,
+                                         CaseAssignmentRepository assignmentRepository) {
         this.completedCaseRepository = completedCaseRepository;
         this.answerRepository = answerRepository;
         this.reviewRepository = reviewRepository;
@@ -76,16 +82,24 @@ public class PhysicianCaseWorkspaceService {
         this.languageService = languageService;
         this.timelineService = timelineService;
         this.hisIntegrationBoundary = hisIntegrationBoundary;
+        this.assignmentRepository = assignmentRepository;
     }
 
     // ─── Dashboard ────────────────────────────────────────────────────
 
     /**
-     * Builds all dashboard rows, newest first.
+     * Builds all dashboard rows, newest first, annotated with queue state
+     * (unassigned pool / assigned-to-whom / assigned-to-the-viewer).
      */
     @Transactional(readOnly = true)
-    public List<CaseListItem> dashboardCases() {
+    public List<CaseListItem> dashboardCases(Long viewerPhysicianId) {
         List<CompletedCaseEntity> cases = completedCaseRepository.findAllByOrderByCreatedAtDesc();
+        Map<String, Long> assigneeIds = new HashMap<>();
+        Map<String, String> assigneeNames = new HashMap<>();
+        for (CaseAssignment assignment : assignmentRepository.findByStatusOrderByAssignedAtDesc(AssignmentStatus.ACTIVE)) {
+            assigneeIds.put(assignment.getCompletedCase().getCaseId(), assignment.getPhysician().getId());
+            assigneeNames.put(assignment.getCompletedCase().getCaseId(), assignment.getPhysician().getUsername());
+        }
         List<CaseListItem> items = new ArrayList<>(cases.size());
         for (CompletedCaseEntity c : cases) {
             String caseId = c.getCaseId();
@@ -101,6 +115,8 @@ public class PhysicianCaseWorkspaceService {
                 }
             }
             String patientLabel = c.getUser() != null ? c.getUser().getUsername() : "Anonymous";
+            boolean assigned = assigneeIds.containsKey(caseId);
+            boolean assignedToMe = assigned && assigneeIds.get(caseId).equals(viewerPhysicianId);
             items.add(new CaseListItem(
                     caseId,
                     c.getCreatedAt(),
@@ -112,7 +128,10 @@ public class PhysicianCaseWorkspaceService {
                     (int) documentCount,
                     reviews.size(),
                     !reviews.isEmpty() && reviews.size() == answers.size() && !answers.isEmpty(),
-                    langs.stream().toList()));
+                    langs.stream().toList(),
+                    assigned,
+                    assigned ? assigneeNames.get(caseId) : "",
+                    assignedToMe));
         }
         return List.copyOf(items);
     }
@@ -121,10 +140,12 @@ public class PhysicianCaseWorkspaceService {
 
     /**
      * Assembles the complete case workspace view, or empty when the case
-     * does not exist.
+     * does not exist. Annotates the queue state relative to the requesting
+     * physician; the caller is responsible for {@code requireAccess} so a
+     * locked case never reaches this assembly.
      */
     @Transactional(readOnly = true)
-    public Optional<WorkspaceView> workspace(String caseId) {
+    public Optional<WorkspaceView> workspace(String caseId, Long viewerPhysicianId) {
         CompletedCaseEntity caseEntity = completedCaseRepository.findByCaseId(caseId).orElse(null);
         if (caseEntity == null) {
             return Optional.empty();
@@ -166,6 +187,10 @@ public class PhysicianCaseWorkspaceService {
                         e.getOutcome().name(), e.getFailureReason()))
                 .toList();
 
+        Optional<CaseAssignment> activeAssignment = assignmentRepository
+                .findByCompletedCase_CaseIdAndStatus(caseId, AssignmentStatus.ACTIVE).stream()
+                .findFirst();
+
         return Optional.of(new WorkspaceView(
                 caseId,
                 caseEntity.getCreatedAt(),
@@ -179,7 +204,11 @@ public class PhysicianCaseWorkspaceService {
                 interop,
                 auditEvents,
                 "/physician/cases/" + caseId + "/timeline",
-                "/physician/cases/" + caseId + "/fhir"));
+                "/physician/cases/" + caseId + "/fhir",
+                activeAssignment.isPresent(),
+                activeAssignment.map(a -> a.getPhysician().getUsername()).orElse(""),
+                activeAssignment.isPresent()
+                        && activeAssignment.get().getPhysician().getId().equals(viewerPhysicianId)));
     }
 
     // ─── Internals ────────────────────────────────────────────────────

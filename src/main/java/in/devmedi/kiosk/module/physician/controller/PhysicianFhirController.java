@@ -8,6 +8,8 @@ import in.devmedi.kiosk.module.fhir.interop.FhirExportContract;
 import in.devmedi.kiosk.module.fhir.interop.FhirExportTransport;
 import in.devmedi.kiosk.module.fhir.model.FhirBundle;
 import in.devmedi.kiosk.module.fhir.service.FhirCaseExportService;
+import in.devmedi.kiosk.module.physician.assignment.CaseAccessDeniedException;
+import in.devmedi.kiosk.module.physician.assignment.CaseAssignmentService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,11 +32,12 @@ import java.util.Optional;
  * {@link FhirCaseExportService} for one completed case. The route lives under
  * {@code /physician/**} so {@code ROLE_PHYSICIAN} is required by the existing
  * {@code SecurityConfig} path rule - the same access rule the timeline,
- * findings and extraction endpoints already use. As in the rest of the
- * physician workflow there is no per-physician case assignment in the MediKiosk
- * model, so a case that does not exist (or cannot be resolved) maps to 404 in
- * the established convention; this endpoint introduces no new permissions,
- * roles, or authorization mechanism.</p>
+ * findings and extraction endpoints already use. Per-case access is enforced
+ * through the case assignment service, so a case locked to another
+ * physician's active assignment resolves to 403 and a case that does not
+ * exist (or cannot be resolved) maps to 404 in the established convention;
+ * this endpoint introduces no new permissions, roles, or authorization
+ * mechanism.</p>
  *
  * <p>On every controller-observable outcome (success, resolvable-case failure,
  * or an unexpected internal export failure) a minimal audit event is recorded
@@ -72,13 +75,16 @@ public class PhysicianFhirController {
     private final FhirCaseExportService fhirCaseExportService;
     private final AuditService auditService;
     private final FhirExportTransport fhirExportTransport;
+    private final CaseAssignmentService assignmentService;
 
     public PhysicianFhirController(FhirCaseExportService fhirCaseExportService,
                                    AuditService auditService,
-                                   FhirExportTransport fhirExportTransport) {
+                                   FhirExportTransport fhirExportTransport,
+                                   CaseAssignmentService assignmentService) {
         this.fhirCaseExportService = fhirCaseExportService;
         this.auditService = auditService;
         this.fhirExportTransport = fhirExportTransport;
+        this.assignmentService = assignmentService;
     }
 
     @GetMapping(value = "/fhir", produces = FHIR_JSON)
@@ -88,6 +94,11 @@ public class PhysicianFhirController {
         String username = actor == null ? null : actor.getUsername();
         String role = actor == null ? null : stripRolePrefix(actor);
         String requestPath = request.getRequestURI();
+        Long actorId = actor == null ? null : actor.getId();
+        Long assigneeId = assignmentService.activeAssigneeId(caseId).orElse(null);
+        if (assigneeId != null && !assigneeId.equals(actorId)) {
+            throw new CaseAccessDeniedException(caseId);
+        }
 
         FhirBundle bundle;
         try {
@@ -128,6 +139,12 @@ public class PhysicianFhirController {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CaseAccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(CaseAccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", ex.getMessage()));
     }
 }

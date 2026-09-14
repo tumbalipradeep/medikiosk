@@ -22,5 +22,8 @@ public record WorkspaceView(String caseId,
                             InteropBoundaryView interoperability,
                             List<AuditWorkspaceItem> auditEvents,
                             String timelineUrl,
-                            String fhirUrl) {
+                            String fhirUrl,
+                            boolean assigned,
+                            String assigneeLabel,
+                            boolean assignedToMe) {
 }

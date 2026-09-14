@@ -1,6 +1,8 @@
 package in.devmedi.kiosk.module.physician.controller;
 
 import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
+import in.devmedi.kiosk.module.physician.assignment.CaseAccessDeniedException;
+import in.devmedi.kiosk.module.physician.assignment.CaseAssignmentService;
 import in.devmedi.kiosk.module.physician.review.ReviewRequest;
 import in.devmedi.kiosk.module.physician.workspace.CaseListItem;
 import in.devmedi.kiosk.module.physician.workspace.CaseNotFoundException;
@@ -24,25 +26,29 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Physician dashboard and per-case workspace, plus the accept/amend/reject
- * review API. Routes live under {@code /physician/**} so {@code ROLE_PHYSICIAN}
- * is required by the existing {@code SecurityConfig} path rule.
+ * Physician dashboard and per-case workspace, the case queue (assign/release),
+ * and the accept/amend/reject review API. Routes live under
+ * {@code /physician/**} so {@code ROLE_PHYSICIAN} is required by the existing
+ * {@code SecurityConfig} path rule.
  */
 @Controller
 public class PhysicianCaseWorkspaceController {
 
     private final PhysicianCaseWorkspaceService workspaceService;
     private final PhysicianReviewService reviewService;
+    private final CaseAssignmentService assignmentService;
 
     public PhysicianCaseWorkspaceController(PhysicianCaseWorkspaceService workspaceService,
-                                            PhysicianReviewService reviewService) {
+                                            PhysicianReviewService reviewService,
+                                            CaseAssignmentService assignmentService) {
         this.workspaceService = workspaceService;
         this.reviewService = reviewService;
+        this.assignmentService = assignmentService;
     }
 
     @GetMapping("/physician/home")
     public String home(@AuthenticationPrincipal ApplicationUserDetails user, Model model) {
-        List<CaseListItem> cases = workspaceService.dashboardCases();
+        List<CaseListItem> cases = workspaceService.dashboardCases(user == null ? null : user.getId());
         model.addAttribute("user", user);
         model.addAttribute("role", "Physician");
         model.addAttribute("cases", cases);
@@ -54,12 +60,36 @@ public class PhysicianCaseWorkspaceController {
     public String caseWorkspace(@PathVariable String caseId,
                                 @AuthenticationPrincipal ApplicationUserDetails user,
                                 Model model) {
-        WorkspaceView view = workspaceService.workspace(caseId)
+        Long physicianId = user == null ? null : user.getId();
+        assignmentService.requireAccess(caseId, physicianId);
+        WorkspaceView view = workspaceService.workspace(caseId, physicianId)
                 .orElseThrow(() -> new CaseNotFoundException(caseId));
         model.addAttribute("user", user);
         model.addAttribute("role", "Physician");
         model.addAttribute("workspace", view);
         return "physician/case";
+    }
+
+    @PostMapping("/physician/cases/{caseId}/assign")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> assign(@PathVariable String caseId,
+                                                      @AuthenticationPrincipal ApplicationUserDetails actor) {
+        if (actor == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        assignmentService.assign(caseId, actor.getId());
+        return ResponseEntity.ok(Map.of("caseId", caseId, "status", "ASSIGNED"));
+    }
+
+    @PostMapping("/physician/cases/{caseId}/unassign")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> unassign(@PathVariable String caseId,
+                                                        @AuthenticationPrincipal ApplicationUserDetails actor) {
+        if (actor == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        assignmentService.unassign(caseId, actor.getId());
+        return ResponseEntity.ok(Map.of("caseId", caseId, "status", "UNASSIGNED"));
     }
 
     @GetMapping("/physician/cases/{caseId}/reviews")
@@ -97,6 +127,12 @@ public class PhysicianCaseWorkspaceController {
     @ExceptionHandler(CaseNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(CaseNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CaseAccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(CaseAccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", ex.getMessage()));
     }
 

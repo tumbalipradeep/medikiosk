@@ -9,19 +9,101 @@
 
 <main class="flex-grow-1 py-5">
     <div class="container">
-        <div class="card shadow-sm mx-auto" style="max-width: 720px;">
-            <div class="card-body p-5">
-                <h1 class="h4 fw-bold mb-1 medikiosk-title">MediKiosk</h1>
-                <h2 class="h5 text-muted mb-4">Administration Home</h2>
-                <hr class="my-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+                <h1 class="h3 fw-bold mb-1 medikiosk-title">Administration</h1>
+                <p class="text-muted mb-0">
+                    Signed in as <strong th:text="${user.displayName}">Administrator</strong>.
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a class="btn btn-primary btn-sm mk-interactive" th:href="@{/admin/accounts}">Manage accounts</a>
+                <a class="btn btn-outline-secondary btn-sm mk-interactive" th:href="@{/admin/settings}">System settings</a>
+            </div>
+        </div>
 
-                <div class="mb-4">
-                    <p class="mb-0"><strong>Administrator name:</strong> <span th:text="${user.displayName}">-</span></p>
-                    <p class="mb-0"><strong>Role:</strong> <span th:text="${role}">Administrator</span></p>
+        <div class="row g-3 mb-4 mk-stagger">
+            <div class="col-6 col-lg-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Patients</div>
+                        <div class="display-6 fw-bold" th:text="${metrics.patients}">0</div>
+                    </div>
                 </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Physicians</div>
+                        <div class="display-6 fw-bold" th:text="${metrics.physicians}">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Administrators</div>
+                        <div class="display-6 fw-bold" th:text="${metrics.administrators}">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Locked / deactivated</div>
+                        <div class="display-6 fw-bold"
+                             th:text="${metrics.lockedAccounts} + ' / ' + ${metrics.deactivatedAccounts}">0 / 0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <div class="alert alert-info" role="alert">
-                    Administration functionality will be added in a later checkpoint.
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Recently created accounts</h2>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-muted">Username</th>
+                                        <th class="text-muted">Name</th>
+                                        <th class="text-muted">Role</th>
+                                        <th class="text-muted">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="a : ${recentAccounts}">
+                                        <td class="fw-semibold" th:text="${a.username}">user</td>
+                                        <td th:text="${a.displayName}">Name</td>
+                                        <td><span class="badge text-bg-light border" th:text="${a.role}">ROLE</span></td>
+                                        <td><span class="badge" th:classappend="${a.statusCss}" th:text="${a.statusLabel}">Active</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Conversational AI providers</h2>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0"
+                                th:each="p : ${aiProviders}">
+                                <span th:text="${p.name}">groq</span>
+                                <span class="badge" th:if="${p.enabled}">Configured</span>
+                                <span class="badge text-bg-light border text-muted" th:unless="${p.enabled}">Not configured</span>
+                            </li>
+                        </ul>
+                        <p class="small text-muted mt-3 mb-0">
+                            Provider API keys are read only from environment variables and are never
+                            displayed or stored by MediKiosk. The deterministic fallback keeps intake
+                            working when no provider is available.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

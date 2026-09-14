@@ -15,6 +15,8 @@ public class ApplicationUserDetails implements UserDetails {
     private final String password;
     private final String displayName;
     private final boolean enabled;
+    private final boolean mustChangePassword;
+    private final boolean locked;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public ApplicationUserDetails(User user) {
@@ -23,6 +25,8 @@ public class ApplicationUserDetails implements UserDetails {
         this.password = user.getPassword();
         this.displayName = user.getDisplayName();
         this.enabled = user.isEnabled();
+        this.mustChangePassword = user.isMustChangePassword();
+        this.locked = user.isLocked();
         this.authorities = List.of(
                 new SimpleGrantedAuthority(user.getRole().authority())
         );
@@ -32,8 +36,24 @@ public class ApplicationUserDetails implements UserDetails {
         return id;
     }
 
+    public long userId() {
+        return id;
+    }
+
+    public String username() {
+        return username;
+    }
+
     public String getDisplayName() {
         return displayName;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public boolean isLocked() {
+        return locked;
     }
 
     /**
@@ -71,7 +91,7 @@ public class ApplicationUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return !locked;
     }
 
     @Override

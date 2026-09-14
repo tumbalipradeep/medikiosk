@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('System Settings - MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>System Settings - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/nav :: authnav}"></div>
+
+<main class="flex-grow-1 py-5">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+                <h1 class="h3 fw-bold mb-1 medikiosk-title">System Settings</h1>
+                <p class="text-muted mb-0">Runtime configuration and effective integration state.</p>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm" th:href="@{/admin/home}">Back to dashboard</a>
+        </div>
+
+        <div th:if="${success}" class="alert alert-success" role="alert" th:text="${success}">Saved.</div>
+        <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}">Error.</div>
+
+        <div class="row g-3">
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Runtime settings</h2>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th class="text-muted">Key</th>
+                                        <th class="text-muted">Value</th>
+                                        <th class="text-muted"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="s : ${settings}">
+                                        <td>
+                                            <div class="fw-semibold" th:text="${s.key}">key</div>
+                                            <div class="small text-muted" th:text="${#strings.isEmpty(s.description)} ? '' : ${s.description}"></div>
+                                        </td>
+                                        <td>
+                                            <form class="d-flex gap-1" th:action="@{/admin/settings}" method="post">
+                                                <input type="hidden" name="key" th:value="${s.key}">
+                                                <input class="form-control form-control-sm" name="value"
+                                                       th:value="${s.value}" maxlength="500" aria-label="Value">
+                                                <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <form th:action="@{/admin/settings/delete}" method="post">
+                                                <input type="hidden" name="key" th:value="${s.key}">
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    <tr th:unless="${hasSettings}">
+                                        <td colspan="3" class="text-muted text-center py-3">No settings recorded.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <hr class="my-4">
+                        <h3 class="h6">Add or update a setting</h3>
+                        <form th:action="@{/admin/settings}" method="post" class="row g-2">
+                            <div class="col-md-5">
+                                <input class="form-control form-control-sm" name="key" placeholder="setting key"
+                                       maxlength="64" required>
+                            </div>
+                            <div class="col-md-5">
+                                <input class="form-control form-control-sm" name="value" placeholder="value"
+                                       maxlength="500" required>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-sm btn-primary w-100" type="submit">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Supported languages</h2>
+                        <p class="small text-muted">
+                            The patient language model is fixed at build time. The
+                            <code>kiosk.default_language</code> setting must use one of these codes.
+                        </p>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between px-0"
+                                th:each="l : ${supportedLanguages}">
+                                <span th:text="${l.nativeName}">English</span>
+                                <code th:text="${l.code}">en-IN</code>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Conversational AI providers</h2>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0"
+                                th:each="p : ${aiProviders}">
+                                <span th:text="${p.name}">groq</span>
+                                <span class="badge" th:if="${p.enabled}">Configured</span>
+                                <span class="badge text-bg-light border text-muted" th:unless="${p.enabled}">Not configured</span>
+                            </li>
+                        </ul>
+                        <p class="small text-muted mt-3 mb-0">
+                            API keys come only from environment variables and are never shown here.
+                            When no provider is available the deterministic fallback is used.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-white border-top py-3 text-center text-muted small">
+    &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot; SIH26047
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

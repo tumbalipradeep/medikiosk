@@ -2,11 +2,19 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="authnav">
 <header class="bg-primary text-white py-3 shadow-sm">
     <div class="container d-flex justify-content-between align-items-center">
-        <span class="navbar-brand mb-0 h1 text-white">MediKiosk</span>
+        <a th:href="${user.roleLabel == 'PHYSICIAN'} ? '/physician/home' : (${user.roleLabel == 'ADMIN'} ? '/admin/home' : '/patient/home')"
+           class="text-white text-decoration-none">
+            <th:block th:replace="~{fragments/brand :: brand('sm')}"></th:block>
+        </a>
         <div class="d-flex align-items-center gap-3">
             <a class="btn btn-outline-light btn-sm"
                th:href="${user.roleLabel == 'PHYSICIAN'} ? '/physician/home' : (${user.roleLabel == 'ADMIN'} ? '/admin/home' : '/patient/home')">Home</a>
+            <th:block th:if="${user.roleLabel == 'ADMIN'}">
+                <a class="btn btn-outline-light btn-sm" th:href="@{/admin/accounts}">Accounts</a>
+                <a class="btn btn-outline-light btn-sm" th:href="@{/admin/settings}">Settings</a>
+            </th:block>
             <span class="small">Signed in as <strong th:text="${user.displayName}">User</strong></span>
+            <a class="btn btn-outline-light btn-sm" th:href="@{/account/profile}">Account</a>
             <form th:action="@{/logout}" method="post" class="mb-0">
                 <button type="submit" class="btn btn-outline-light btn-sm">Sign out</button>
             </form>

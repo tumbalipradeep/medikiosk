@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<span th:fragment="brand(size)"
+      class="medikiosk-brand"
+      th:classappend="${size} != null ? ' medikiosk-brand--' + ${size} : ' medikiosk-brand--md'">
+    <img th:src="@{/img/medikiosk-logo-64.png}" alt="MediKiosk logo"
+         th:attr="srcset=@{/img/medikiosk-logo-32.png}+' 32w, ' + @{/img/medikiosk-logo-64.png}+' 64w, ' + @{/img/medikiosk-logo-192.png}+' 192w'"
+         class="medikiosk-brand__logo">
+    <span class="medikiosk-brand__wordmark">MediKiosk</span>
+</span>
+</body>
+</html>

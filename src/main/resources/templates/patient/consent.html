@@ -13,7 +13,7 @@
     <div class="container">
         <div class="card shadow-sm mx-auto" style="max-width: 860px;">
             <div class="card-body p-4 p-md-5">
-                <h1 class="h4 fw-bold mb-1 medikiosk-title">MediKiosk</h1>
+                <th:block th:replace="~{fragments/brand :: brand('md')}"></th:block>
                 <h2 class="h5 text-muted mb-4">Consent &amp; Privacy Choices</h2>
 
                 <div th:if="${message}" class="alert alert-success" role="alert" th:text="${message}">-</div>

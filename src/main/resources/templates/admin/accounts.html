@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Account Administration - MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Account Administration - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/nav :: authnav}"></div>
+
+<main class="flex-grow-1 py-5">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+                <h1 class="h3 fw-bold mb-1 medikiosk-title">Account Administration</h1>
+                <p class="text-muted mb-0">Patient and physician accounts, provisioning, and access state.</p>
+            </div>
+            <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#provisionPhysician" aria-expanded="false"
+                    aria-controls="provisionPhysician">Provision physician</button>
+        </div>
+
+        <div th:if="${success}" class="alert alert-success" role="alert" th:text="${success}">Saved.</div>
+        <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}">Error.</div>
+        <div th:if="${temporaryPassword}" class="alert alert-warning" role="alert">
+            <p class="mb-1"><strong>Temporary password</strong>
+                <span th:if="${temporaryPasswordFor}">for <span th:text="${temporaryPasswordFor}">user</span></span>:
+                <code th:text="${temporaryPassword}">temp-password</code>
+            </p>
+            <p class="mb-0 small">Shown once. The user must change it on next login.</p>
+        </div>
+
+        <div class="collapse mb-4" id="provisionPhysician">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Provision physician account</h2>
+                    <form th:action="@{/admin/physicians/provision}" method="post" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="pUsername">Username</label>
+                            <input class="form-control" id="pUsername" name="username" required maxlength="100">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pDisplayName">Display name</label>
+                            <input class="form-control" id="pDisplayName" name="displayName" required maxlength="200">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pQualification">Qualification</label>
+                            <input class="form-control" id="pQualification" name="qualification" maxlength="300">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pDesignation">Designation</label>
+                            <input class="form-control" id="pDesignation" name="designation" maxlength="200">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pDepartment">Department</label>
+                            <input class="form-control" id="pDepartment" name="department" maxlength="200">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pOrganization">Hospital / organization</label>
+                            <input class="form-control" id="pOrganization" name="organization" maxlength="300">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pRegistration">Registration number</label>
+                            <input class="form-control" id="pRegistration" name="registrationNumber" maxlength="60">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pEmail">Email</label>
+                            <input class="form-control" id="pEmail" name="email" type="email" maxlength="120">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="pPhone">Phone</label>
+                            <input class="form-control" id="pPhone" name="phone" maxlength="30">
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-primary" type="submit">Provision account</button>
+                            <span class="small text-muted ms-2">A temporary password is generated and shown once.</span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3 btn-group" role="group" aria-label="Role filter">
+            <a class="btn btn-sm"
+               th:classappend="${roleFilter == ''} ? 'btn-primary' : 'btn-outline-secondary'"
+               th:href="@{/admin/accounts}">All</a>
+            <a class="btn btn-sm"
+               th:classappend="${roleFilter == 'PATIENT'} ? 'btn-primary' : 'btn-outline-secondary'"
+               th:href="@{/admin/accounts(role='PATIENT')}">Patients</a>
+            <a class="btn btn-sm"
+               th:classappend="${roleFilter == 'PHYSICIAN'} ? 'btn-primary' : 'btn-outline-secondary'"
+               th:href="@{/admin/accounts(role='PHYSICIAN')}">Physicians</a>
+            <a class="btn btn-sm"
+               th:classappend="${roleFilter == 'ADMIN'} ? 'btn-primary' : 'btn-outline-secondary'"
+               th:href="@{/admin/accounts(role='ADMIN')}">Administrators</a>
+        </div>
+
+        <div th:unless="${hasAccounts}" class="card shadow-sm border-0">
+            <div class="card-body text-center py-5">
+                <p class="text-muted mb-0">No accounts match this filter.</p>
+            </div>
+        </div>
+
+        <div th:if="${hasAccounts}" class="card shadow-sm">
+            <div class="card-body py-2">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-muted">Username</th>
+                                <th class="text-muted">Name</th>
+                                <th class="text-muted">Role</th>
+                                <th class="text-muted">Detail</th>
+                                <th class="text-muted">Status</th>
+                                <th class="text-muted">Created</th>
+                                <th class="text-muted">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="a : ${accounts}">
+                                <td class="fw-semibold" th:text="${a.username}">user</td>
+                                <td th:text="${a.displayName}">Name</td>
+                                <td><span class="badge text-bg-light border" th:text="${a.role}">ROLE</span></td>
+                                <td class="small text-muted" th:text="${#strings.isEmpty(a.detail)} ? '-' : ${a.detail}">-</td>
+                                <td><span class="badge" th:classappend="${a.statusCss}" th:text="${a.statusLabel}">Active</span></td>
+                                <td class="small text-muted" th:text="${#temporals.format(a.createdAt, 'dd MMM yyyy')}">-</td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <a th:if="${a.role == 'PHYSICIAN'}" class="btn btn-sm btn-outline-primary"
+                                           th:href="@{'/admin/physicians/' + ${a.id} + '/profile'}">Profile</a>
+                                        <form th:if="${!a.enabled}" th:action="@{'/admin/accounts/' + ${a.id} + '/activate'}" method="post" class="d-inline">
+                                            <button class="btn btn-sm btn-outline-success" type="submit">Activate</button>
+                                        </form>
+                                        <form th:if="${a.enabled}" th:action="@{'/admin/accounts/' + ${a.id} + '/deactivate'}" method="post" class="d-inline">
+                                            <button class="btn btn-sm btn-outline-secondary" type="submit">Deactivate</button>
+                                        </form>
+                                        <form th:if="${!a.locked}" th:action="@{'/admin/accounts/' + ${a.id} + '/lock'}" method="post" class="d-inline">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Lock</button>
+                                        </form>
+                                        <form th:if="${a.locked}" th:action="@{'/admin/accounts/' + ${a.id} + '/unlock'}" method="post" class="d-inline">
+                                            <button class="btn btn-sm btn-outline-success" type="submit">Unlock</button>
+                                        </form>
+                                        <form th:action="@{'/admin/accounts/' + ${a.id} + '/reset-password'}" method="post" class="d-inline">
+                                            <button class="btn btn-sm btn-outline-warning" type="submit">Reset password</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <p class="small text-muted mt-3 mb-0">
+            Administrative actions change account state only. MediKiosk never modifies or exposes
+            clinical content from this console.
+        </p>
+    </div>
+</main>
+
+<footer class="bg-white border-top py-3 text-center text-muted small">
+    &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot; SIH26047
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

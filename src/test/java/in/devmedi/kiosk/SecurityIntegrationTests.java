@@ -147,7 +147,7 @@ class SecurityIntegrationTests {
         mockMvc.perform(get("/admin/home").session(session))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("MediKiosk Administrator")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Administration Home")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Administration")));
     }
 
     @Test

@@ -22,7 +22,11 @@ import in.devmedi.kiosk.module.clinical.i18n.QuestionLocalizationService;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlag;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagEvaluator;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagSeverity;
+import in.devmedi.kiosk.module.clinical.history.ClinicalHistorySeedingService;
+import in.devmedi.kiosk.module.clinical.triage.RedFlagAssessmentService;
+import in.devmedi.kiosk.module.encounter.EncounterService;
 import in.devmedi.kiosk.module.patientsession.service.PatientSessionService;
+import in.devmedi.kiosk.module.physician.clinicalrecord.ClinicalSummaryService;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import in.devmedi.kiosk.module.physician.service.CompletedCaseReviewStore;
@@ -40,6 +44,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -105,6 +110,10 @@ public class ClinicalIntakeConversationController {
     private final LanguageService languageService;
     private final QuestionLocalizationService questionLocalization;
     private final PatientSessionService patientSessionService;
+    private final EncounterService encounterService;
+    private final ClinicalHistorySeedingService historySeeding;
+    private final RedFlagAssessmentService redFlagAssessmentService;
+    private final ClinicalSummaryService clinicalSummaryService;
 
     private final Set<String> clinicalQuestionIds;
     private final Set<String> dashavidhaQuestionIds;
@@ -120,7 +129,11 @@ public class ClinicalIntakeConversationController {
                                                 AiConversationService aiConversationService,
                                                 LanguageService languageService,
                                                 QuestionLocalizationService questionLocalization,
-                                                PatientSessionService patientSessionService) {
+                                                PatientSessionService patientSessionService,
+                                                EncounterService encounterService,
+                                                ClinicalHistorySeedingService historySeeding,
+                                                RedFlagAssessmentService redFlagAssessmentService,
+                                                ClinicalSummaryService clinicalSummaryService) {
         this.questionPlanner = questionPlanner;
         this.dashavidhaQuestionPlanner = dashavidhaQuestionPlanner;
         this.aharaViharaQuestionPlanner = aharaViharaQuestionPlanner;
@@ -131,6 +144,10 @@ public class ClinicalIntakeConversationController {
         this.languageService = languageService;
         this.questionLocalization = questionLocalization;
         this.patientSessionService = patientSessionService;
+        this.encounterService = encounterService;
+        this.historySeeding = historySeeding;
+        this.redFlagAssessmentService = redFlagAssessmentService;
+        this.clinicalSummaryService = clinicalSummaryService;
         this.clinicalQuestionIds = questionPlanner.questions().stream()
                 .map(ClinicalQuestion::id)
                 .collect(Collectors.toUnmodifiableSet());
@@ -402,8 +419,12 @@ public class ClinicalIntakeConversationController {
             Long userId = principal != null ? principal.getId() : null;
             CompletedCase completedCase = reviewStore.register(result);
             casePersistence.save(completedCase, userId);
+            historySeeding.seedFromCompletedCase(completedCase.withUserId(userId));
+            redFlagAssessmentService.recordSystemDetectedFlags(completedCase.id(), redFlagsFrom(result));
+            clinicalSummaryService.seedDrafts(completedCase);
             session.setAttribute(COMPLETED_CASE_ATTRIBUTE, completedCase.id());
             if (userId != null) {
+                encounterService.submit(userId, completedCase.id());
                 patientSessionService.complete(userId);
             }
             return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
@@ -417,6 +438,30 @@ public class ClinicalIntakeConversationController {
     private ClinicalIntakeResponse completedResponse(String caseId) {
         return new ClinicalIntakeResponse(null, DialogueState.COMPLETED, true,
                 List.of(), RedFlagSeverity.NONE, caseId, totalQuestions, totalQuestions);
+    }
+
+    /**
+     * Re-derives every red flag across the whole completed conversation, so
+     * flags raised by earlier answers (for example the chief complaint) are
+     * never lost when the case is finalized. Deduplicated by flag id.
+     */
+    private List<RedFlag> redFlagsFrom(ClinicalConversationResult result) {
+        if (result == null) {
+            return List.of();
+        }
+        Set<String> seen = new LinkedHashSet<>();
+        List<RedFlag> flags = new ArrayList<>();
+        for (ClinicalAnswer answer : result.all()) {
+            if (answer.answer() == null || answer.answer().isBlank()) {
+                continue;
+            }
+            for (RedFlag flag : redFlagEvaluator.evaluate(answer.answer())) {
+                if (seen.add(flag.id())) {
+                    flags.add(flag);
+                }
+            }
+        }
+        return List.copyOf(flags);
     }
 
     /**

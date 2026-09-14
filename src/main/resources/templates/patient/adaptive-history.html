@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Complete your clinical history - MediKiosk')}">
+<meta charset="UTF-8">
+<meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
+<meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : ''}">
+<title>Complete your clinical history - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/nav :: authnav}"></div>
+
+<main class="flex-grow-1 py-5">
+    <div class="container" style="max-width: 760px;">
+        <div class="card shadow-sm">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div>
+                        <th:block th:replace="~{fragments/brand :: brand('md')}"></th:block>
+                        <h1 class="h4 fw-bold mb-1 medikiosk-title">Complete your clinical history</h1>
+                        <p class="text-muted mb-0 small">
+                            A short guided conversation to add the health history we have not collected yet.
+                            Answer honestly; you can skip nothing that is asked.
+                        </p>
+                    </div>
+                    <a th:href="@{/patient/home}" class="btn btn-outline-secondary btn-sm">Back to home</a>
+                </div>
+
+                <div class="progress mb-3" style="height: 8px;">
+                    <div id="adv-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+
+                <div id="adv-card" class="text-center py-5 d-none">
+                    <h2 class="h5 mb-1" id="adv-category-label"></h2>
+                    <p class="lead mb-4" id="adv-question"></p>
+                    <div class="row g-2 justify-content-center mb-3">
+                        <div class="col-12 col-md-8">
+                            <textarea id="adv-answer" class="form-control" rows="3"
+                                      placeholder="Tell us in your own words..."></textarea>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button id="adv-submit" class="btn btn-primary px-4" type="button">Save &amp; continue</button>
+                        <button id="adv-skip" class="btn btn-outline-secondary d-none" type="button">Can't say</button>
+                    </div>
+                </div>
+
+                <div id="adv-done" class="text-center py-5 d-none">
+                    <h2 class="h4 fw-bold medikiosk-title mb-2">Your clinical history is complete.</h2>
+                    <p class="text-muted mb-3">
+                        Everything you told us has been saved to your structured clinical history.
+                    </p>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a th:href="@{/patient/history}" class="btn btn-primary">View my clinical history</a>
+                        <a th:href="@{/patient/home}" class="btn btn-outline-secondary">Back to home</a>
+                    </div>
+                </div>
+
+                <div id="adv-boot" class="text-center py-5">
+                    <p class="text-muted mb-3">Ready to answer a few more questions about your health?</p>
+                    <button id="adv-start" class="btn btn-primary px-4" type="button">Start</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-white border-top py-3 text-center text-muted small">
+    &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot; SIH26027
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/adaptive-history.js}"></script>
+</body>
+</html>

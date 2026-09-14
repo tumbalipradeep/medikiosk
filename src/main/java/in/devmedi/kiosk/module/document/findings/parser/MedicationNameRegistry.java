@@ -70,6 +70,15 @@ public class MedicationNameRegistry {
     }
 
     /**
+     * @return every curated drug name, longest first, for reuse by other
+     *         components that need the same recognition vocabulary (e.g. the
+     *         medication interaction normalizer)
+     */
+    public List<String> sortedNames() {
+        return sortedNames;
+    }
+
+    /**
      * Returns the display name actually matched (preserving source case via the
      * matched slice), or {@code null} when no registry drug starts the text.
      */

@@ -70,6 +70,25 @@ bundle that is byte-for-byte repeatable with no fabricated code systems. Zero
 end-to-end defects were open; the milestone closes only after the full clean
 regression and a final browser-level re-run.
 
+**M6 — RW2: Clinical intelligence foundation (complete).** The demo kiosk
+matures into a serious clinical workflow platform. Account lifecycle and
+self-service (registration, login lockout and failure handling, password
+change, session control, admin account management, patient and physician
+profile self-service with profile pictures), a complete clinical domain
+(encounters, complete clinical history across chief complaint / HPI / past
+medical / surgical / medications / allergies / family / social / review of
+systems, AYUSH, Ahara-Vihara), an adaptive conversation planner that completes
+an honest history interview, deterministic red-flag triage with physician
+assessment, a medication interaction screen, clinical provenance on every
+answer, a physician clinical-record workspace (case assignment and queue,
+red-flag triage, auto-seeded clinical summaries with amend / accept / reject,
+consultation with finalization), professional product UX (branded identity,
+motion system with reduced-motion support), and a 698-test suite with zero
+failures. See `docs/RW2-audit.md`. Bounded HTTP/HTML verification: 21 PASS /
+0 FAIL / 0 TIMEOUT / 4 BLOCKED (physician case pages have no seeded data in a
+fresh in-memory database); real browser automation was unavailable in this
+environment.
+
 MediKiosk currently includes:
 
 - Authentication/security
@@ -86,6 +105,14 @@ MediKiosk currently includes:
 - Voice ASR/TTS integration with a Bhashini adapter and deterministic fallback
 - Deterministic repeatable FHIR R4 export with audit trail
 - Physician dashboard with persistent accept / amend / reject workspace reviews
+- Account lifecycle: registration, login lockout, password change, session control
+- Admin console: account management, physician provisioning, system settings
+- Patient and physician profile self-service with profile pictures
+- Complete clinical history with clinical provenance
+- Adaptive conversation planner for finishing a patient history
+- Red-flag triage with physician assessment
+- Medication interaction screening
+- Physician clinical record: triage, clinical summary, consultation
 
 ## Prerequisites
 
@@ -151,14 +178,18 @@ src/main/java/in/devmedi/kiosk/
   health/                     # Health indicator
   home/                       # Home controller
 module/                     # Feature modules
-      auth/                     # Authentication / security
-      patient/                  # Patient home, consent, intake
-      clinical/                 # Clinical dialogue, AYUSH, red flags, summary, adaptive AI
+      auth/                     # Authentication / security, account lifecycle, profiles
+      patient/                  # Patient home, consent, intake, history
+      clinical/                 # Clinical dialogue, AYUSH, red flags, summary, adaptive AI, history, provenance, triage
       voice/                    # ASR/TTS (Bhashini adapter + deterministic fallback)
       document/                 # Document upload / extraction / findings / timeline
-      physician/                # Physician review, completed cases
+      physician/                # Physician review, completed cases, assignment, clinical record
       patientsession/           # Patient session state
-      consent/ admin/ ai/       # Consent, admin home, AI provider adapters
+      encounter/                # Encounter lifecycle
+      medication/               # Medication interaction screening
+      profile/                  # Patient / physician profiles and picture storage
+      admin/                    # Admin console, account management, system settings
+      consent/ ai/              # Consent, AI provider adapters
       appointment/ fhir/ abdm/ his/ ocr/   # Planned / placeholder
 src/main/resources/
   application.yml             # PostgreSQL / Flyway configuration

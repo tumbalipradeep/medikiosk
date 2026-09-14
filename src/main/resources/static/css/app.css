@@ -1,6 +1,19 @@
 :root {
     --medikiosk-primary: #0d6efd;
     --medikiosk-accent: #0dcaf0;
+
+    /* ─── Motion / compositor tokens ────────────────────────────────
+       Spring-physics-inspired timing tuned for a healthcare UI:
+       purposeful movement, subtle overshoot, fast settling.
+       Nothing cartoonish. */
+    --mk-motion-duration: 380ms;
+    --mk-motion-duration-fast: 220ms;
+    --mk-motion-duration-slow: 520ms;
+    --mk-motion-ease: cubic-bezier(0.34, 1.56, 0.64, 1);   /* spring overshoot */
+    --mk-motion-ease-settle: cubic-bezier(0.22, 1, 0.36, 1); /* settle without bounce */
+    --mk-motion-ease-exit: cubic-bezier(0.4, 0, 0.2, 1);    /* ease out for exits */
+    --mk-motion-scale-press: 0.97;
+    --mk-motion-lift: translateY(-6px);
 }
 
 body {
@@ -11,6 +24,37 @@ body {
     color: var(--medikiosk-primary);
     letter-spacing: 0.5px;
 }
+
+/* MediKiosk brand (canonical logo supplied by the project owner).
+   The logo is rendered at fixed visual sizes; proportions are preserved. */
+.medikiosk-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1;
+}
+
+.medikiosk-brand__logo {
+    height: 2.25rem;
+    width: auto;
+    border-radius: 0.375rem;
+    background: #ffffff;
+    padding: 0.125rem;
+    object-fit: contain;
+}
+
+.medikiosk-brand__wordmark {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.medikiosk-brand--sm .medikiosk-brand__logo { height: 1.5rem; }
+.medikiosk-brand--lg .medikiosk-brand__logo { height: 4rem; }
+.medikiosk-brand--xl .medikiosk-brand__logo { height: 5.5rem; }
+.medikiosk-brand--sm .medikiosk-brand__wordmark { font-size: 1rem; }
+.medikiosk-brand--lg .medikiosk-brand__wordmark { font-size: 1.75rem; }
+.medikiosk-brand--xl .medikiosk-brand__wordmark { font-size: 2.25rem; }
 
 /* Patient intake conversation */
 .intake-conversation {
@@ -251,5 +295,174 @@ button[data-state="unavailable"] {
     .btn-lg-mobile {
         min-height: 3.5rem;
         font-size: 1.05rem;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOTION / COMPOSITOR LAYER — centralized, purposeful, spring-inspired
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Entrance keyframes ─────────────────────────────────────────── */
+
+/* Spring-in: scale from slightly below + translate up, overshoot settles */
+@keyframes mk-spring-in {
+    0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.96);
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(-3px) scale(1.01);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Fade-up: subtle entrance for list rows / table items */
+@keyframes mk-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Magic-Lamp panel open: clip + scale origin top-left, like a window unrolling */
+@keyframes mk-lamp-in {
+    0% {
+        opacity: 0;
+        clip-path: inset(0 100% 100% 0 round 0.5rem);
+        transform: scale(0.92);
+    }
+    50% {
+        opacity: 1;
+        clip-path: inset(0 0 35% 0 round 0.5rem);
+        transform: scale(1);
+    }
+    100% {
+        opacity: 1;
+        clip-path: inset(0 0 0 0 round 0.5rem);
+        transform: scale(1);
+    }
+}
+
+/* Soft scale-bounce for toast / badge appearance */
+@keyframes mk-badge-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.7);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.08);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Pulse ring (refined from original medi-kiosk-pulse for reduced motion) */
+@keyframes mk-pulse-ring {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.3);
+    }
+    70% {
+        box-shadow: 0 0 0 0.4rem rgba(13, 110, 253, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    }
+}
+
+/* ─── Utility classes ────────────────────────────────────────────── */
+
+.mk-motion-spring-in {
+    animation: mk-spring-in var(--mk-motion-duration) var(--mk-motion-ease) both;
+}
+
+.mk-motion-fade-up {
+    animation: mk-fade-up var(--mk-motion-duration) var(--mk-motion-ease-settle) both;
+}
+
+.mk-motion-lamp-in {
+    animation: mk-lamp-in var(--mk-motion-duration-slow) var(--mk-motion-ease-settle) both;
+}
+
+.mk-motion-badge-in {
+    animation: mk-badge-in var(--mk-motion-duration-fast) var(--mk-motion-ease) both;
+}
+
+/* Staggered entrance: children animate in sequence */
+.mk-stagger > * {
+    opacity: 0;
+    animation: mk-fade-up var(--mk-motion-duration) var(--mk-motion-ease-settle) both;
+}
+.mk-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.mk-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.mk-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.mk-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.mk-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.mk-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.mk-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.mk-stagger > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Interactive press: subtle spring-scale on active (buttons, cards with role) */
+.mk-interactive {
+    transition: transform var(--mk-motion-duration-fast) var(--mk-motion-ease),
+                box-shadow var(--mk-motion-duration-fast) var(--mk-motion-ease-settle);
+    will-change: transform;
+}
+.mk-interactive:hover {
+    transform: var(--mk-motion-lift);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+.mk-interactive:active {
+    transform: scale(var(--mk-motion-scale-press));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transition-duration: 80ms;
+}
+
+/* Panel: smooth panel/modal entrance */
+.mk-panel {
+    animation: mk-spring-in var(--mk-motion-duration) var(--mk-motion-ease) both;
+}
+
+/* Hero brand entrance */
+.mk-hero-enter {
+    animation: mk-spring-in var(--mk-motion-duration-slow) var(--mk-motion-ease) both;
+}
+
+/* Landing gradient hero */
+.mk-hero {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 50%, #f0fdfa 100%);
+}
+
+/* ─── Accessibility: prefers-reduced-motion ──────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    .mk-stagger > * {
+        opacity: 1;
+        animation: none;
+    }
+    .mk-interactive:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    .mk-interactive:active {
+        transform: none;
+        box-shadow: none;
     }
 }

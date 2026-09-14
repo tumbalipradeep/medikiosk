@@ -25,10 +25,20 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge text-bg-secondary" th:text="'Case ' + ${workspace.caseId}">Case case-uuid</span>
+                <span th:if="${workspace.assignedToMe}" class="badge text-bg-success">Assigned to you</span>
+                <span th:if="${workspace.assigned && !workspace.assignedToMe}" class="badge text-bg-warning"
+                      th:text="'Assigned to ' + ${workspace.assigneeLabel}">Assigned to physician</span>
+                <span th:if="${!workspace.assigned}" class="badge text-bg-secondary">Unassigned pool</span>
+                <button th:if="${workspace.assignedToMe}" type="button" id="releaseCaseBtn"
+                        class="btn btn-sm btn-outline-secondary">Release to queue</button>
                 <span class="badge text-bg-primary" th:text="${workspace.answeredCount} + ' captured answers'">25 captured answers</span>
                 <span class="badge text-bg-success">
                     <span id="reviewedCount">0</span> / <span th:text="${workspace.answeredCount}">25</span> reviewed
                 </span>
+                <a class="btn btn-sm btn-outline-primary"
+                   th:href="@{'/physician/cases/' + ${workspace.caseId} + '/record'}">
+                    Clinical record
+                </a>
                 <a class="btn btn-sm btn-outline-secondary"
                    th:href="@{'/physician/cases/' + ${workspace.caseId} + '/fhir'}" target="_blank" rel="noopener">
                     Export FHIR (R4)
@@ -85,7 +95,7 @@
                 </div>
 
                 <div th:each="section : ${workspace.sections}" class="mb-4">
-                    <div class="card shadow-sm">
+                    <div class="card shadow-sm mk-motion-spring-in">
                         <div class="card-header bg-white d-flex justify-content-between align-items-center">
                             <h2 class="h5 fw-bold mb-0" th:text="${section.label}">Section</h2>
                             <span class="badge rounded-pill text-bg-secondary"
@@ -293,6 +303,37 @@
                             </table>
                         </div>
                         <p class="small text-muted mt-2 mb-0">Kiosk consent covers in-clinic processing only. It is not authorization to share data externally.</p>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4" id="medicationScreeningCard">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h2 class="h5 fw-bold mb-0">Medication Interaction Screening</h2>
+                        <span id="overallSeverityBadge" class="badge text-bg-secondary">Loading&hellip;</span>
+                    </div>
+                    <div class="card-body py-3">
+                        <p class="small text-muted mb-3">Screened from patient history, attached document findings, and physician additions. This is a clinical aid, not a prescription or diagnosis.</p>
+                        <form id="addMedicationForm" class="row g-2 mb-3">
+                            <div class="col-12">
+                                <input type="text" id="medNameInput" class="form-control form-control-sm" placeholder="Medicine name" required>
+                            </div>
+                            <div class="col-6">
+                                <input type="text" id="medDoseInput" class="form-control form-control-sm" placeholder="Dose (optional)">
+                            </div>
+                            <div class="col-6">
+                                <input type="text" id="medFreqInput" class="form-control form-control-sm" placeholder="Frequency (optional)">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-sm btn-primary w-100">Add to screen</button>
+                            </div>
+                        </form>
+                        <div id="medList" class="mb-3">
+                            <p class="small text-muted">Loading&hellip;</p>
+                        </div>
+                        <h6 class="fw-bold mb-2 small text-uppercase">Interactions</h6>
+                        <div id="interactionsList">
+                            <p class="small text-muted">Loading&hellip;</p>
+                        </div>
                     </div>
                 </div>
 

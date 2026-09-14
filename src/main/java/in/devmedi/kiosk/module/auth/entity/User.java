@@ -37,6 +37,15 @@ public class User {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -52,6 +61,25 @@ public class User {
         this.displayName = displayName;
         this.role = role;
         this.enabled = true;
+    }
+
+    /** @return whether the account is currently locked (locked_until in the future). */
+    public boolean isLocked() {
+        return lockedUntil != null && lockedUntil.isAfter(Instant.now());
+    }
+
+    /** Records one failed login attempt; applies the lockout window when the cap is reached. */
+    public void recordFailedLogin(int maxAttempts, java.time.Duration lockDuration) {
+        this.failedLoginAttempts += 1;
+        if (this.failedLoginAttempts >= maxAttempts) {
+            this.lockedUntil = Instant.now().plus(lockDuration);
+        }
+    }
+
+    /** Resets the failed-attempt counter and clears any temporary lockout. */
+    public void resetFailedLogin() {
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
     }
 
     @PrePersist
@@ -108,6 +136,30 @@ public class User {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
+    }
+
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public Instant getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(Instant lockedUntil) {
+        this.lockedUntil = lockedUntil;
     }
 
     public Instant getCreatedAt() {

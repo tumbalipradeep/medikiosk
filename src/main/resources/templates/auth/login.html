@@ -11,19 +11,32 @@
 <body class="bg-light d-flex flex-column min-vh-100">
 <header class="bg-primary text-white py-3 shadow-sm">
     <div class="container d-flex justify-content-between align-items-center">
-        <a th:href="@{/}" class="navbar-brand mb-0 h1 text-white text-decoration-none">MediKiosk</a>
+        <a th:href="@{/}" class="text-white text-decoration-none">
+            <th:block th:replace="~{fragments/brand :: brand('sm')}"></th:block>
+        </a>
     </div>
 </header>
 
 <main class="flex-grow-1 d-flex align-items-center py-5">
     <div class="container" style="max-width: 440px;">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm mk-motion-spring-in">
             <div class="card-body p-4 p-md-5">
-                <h1 class="h4 fw-bold mb-1 medikiosk-title">MediKiosk</h1>
-                <p class="text-muted small mb-4">Patient Case-Taking Platform</p>
+                <div class="text-center mb-3">
+                    <th:block th:replace="~{fragments/brand :: brand('md')}"></th:block>
+                </div>
+                <p class="text-muted small text-center mb-4">Patient Case-Taking Platform</p>
 
                 <div th:if="${param.error}" class="alert alert-danger" role="alert" th:text="#{login.invalid}">
                     Invalid username or password.
+                </div>
+                <div th:if="${param.locked}" class="alert alert-warning" role="alert">
+                    This account is temporarily locked due to too many failed sign-in attempts. Try again later.
+                </div>
+                <div th:if="${param.disabled}" class="alert alert-warning" role="alert">
+                    This account has been deactivated. Contact an administrator.
+                </div>
+                <div th:if="${param.registered}" class="alert alert-success" role="alert">
+                    Account created. You can now sign in.
                 </div>
                 <div th:if="${param.logout}" class="alert alert-success" role="alert" th:text="#{login.loggedout}">
                     You have been signed out.
@@ -40,10 +53,13 @@
                         <input type="password" id="password" name="password" class="form-control"
                                autocomplete="current-password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100 py-2">Sign in</button>
+                    <button type="submit" class="btn btn-primary w-100 py-2 mk-interactive">Sign in</button>
                 </form>
 
                 <hr class="my-4">
+                <p class="text-muted small mb-3">
+                    New here? <a th:href="@{/register}">Create a patient account</a>
+                </p>
                 <p class="text-muted small mb-1">Demo credentials:</p>
                 <ul class="text-muted small mb-0">
                     <li>Patient &mdash; <code>patient / patient123</code></li>
