@@ -1,5 +1,6 @@
 package in.devmedi.kiosk.module.document.findings;
 
+import in.devmedi.kiosk.module.document.extraction.ExtractionMethod;
 import in.devmedi.kiosk.module.document.extraction.ExtractionStatus;
 
 import java.time.Instant;
@@ -16,6 +17,8 @@ import java.time.Instant;
  * @param extractionStatus       current extraction status
  * @param extractionStatusLabel  human-readable extraction status text
  * @param extractionBadgeClass   Bootstrap badge class for the extraction status
+ * @param extractionMethod       proven extraction method, or {@code null}
+ * @param extractionProvider     proven extraction provider, or {@code null}
  * @param hasFindings            whether structured findings are available
  * @param labCount               number of decoded lab results
  * @param abnormalLabCount       number of lab results with LOW or HIGH status
@@ -30,6 +33,8 @@ public record DocumentWorkspaceItem(String documentId,
                                     ExtractionStatus extractionStatus,
                                     String extractionStatusLabel,
                                     String extractionBadgeClass,
+                                    ExtractionMethod extractionMethod,
+                                    String extractionProvider,
                                     boolean hasFindings,
                                     int labCount,
                                     int abnormalLabCount,

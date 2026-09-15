@@ -37,6 +37,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -219,6 +221,8 @@ class PhysicianTimelineIntegrationTests {
         assertThat(itemA.documentId()).isEqualTo(loaded.docAId());
         assertThat(itemA.fileSize()).isPositive();
         assertThat(itemA.extractionStatus().name()).isEqualTo("EXTRACTED");
+        assertThat(itemA.extractionMethod().name()).isEqualTo("PDF_TEXT");
+        assertThat(itemA.extractionProvider()).isEqualTo("pdfbox");
         assertThat(itemA.hasFindings()).isTrue();
         assertThat(itemA.labCount()).isEqualTo(2);
         assertThat(itemA.abnormalLabCount()).isZero();
@@ -359,7 +363,9 @@ class PhysicianTimelineIntegrationTests {
                         .session(loginPhysician()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.events").isArray())
-                .andExpect(jsonPath("$.events.length()").value(14));
+                .andExpect(jsonPath("$.events.length()").value(18))
+                .andExpect(jsonPath("$.events[*].eventType")
+                        .value(hasItems(is("DOCUMENT_UPLOADED"), is("EXTRACTION_COMPLETED"), is("ABNORMAL_LAB_DETECTED"))));
 
         mockMvc.perform(get("/physician/cases/" + loaded.caseId() + "/timeline")
                         .session(loginPatient()))
@@ -377,6 +383,52 @@ class PhysicianTimelineIntegrationTests {
     }
 
     @Test
+    void timelineIncludesPhysicianReviewAndConsultationFinalizedEvents() throws Exception {
+        String caseId = createCase("Timeline");
+
+        mockMvc.perform(post("/physician/cases/" + caseId + "/answers/0/review")
+                        .session(loginPhysician())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"decision\":\"ACCEPTED\",\"rationale\":\"Matches intake\"}")
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/physician/cases/" + caseId + "/consultation")
+                        .session(loginPhysician())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"assessment\":\"Reviewed and finalized\",\"plan\":\"Follow up\"}")
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/physician/cases/" + caseId + "/consultation/finalize")
+                        .session(loginPhysician())
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        TimelineResponse response = timelineService.timeline(caseId);
+        List<TimelineEvent> events = response.events();
+
+        List<TimelineEvent> reviews = events.stream()
+                .filter(e -> e.eventType() == TimelineEventType.PHYSICIAN_REVIEW)
+                .toList();
+        assertThat(reviews).hasSize(1);
+        assertThat(reviews.get(0).label()).contains("Accepted");
+        assertThat(reviews.get(0).sourceDocumentFilename()).isEqualTo("case record");
+        assertThat(reviews.get(0).sourceSnippet()).contains("Timeline");
+
+        List<TimelineEvent> finalized = events.stream()
+                .filter(e -> e.eventType() == TimelineEventType.CONSULTATION_FINALIZED)
+                .toList();
+        assertThat(finalized).hasSize(1);
+        assertThat(finalized.get(0).label()).isEqualTo("Consultation finalized");
+        assertThat(finalized.get(0).details()).contains("Reviewed and finalized");
+        assertThat(finalized.get(0).sourceDocumentFilename()).isEqualTo("case record");
+
+        assertThat(events).extracting(TimelineEvent::eventType)
+                .contains(TimelineEventType.PHYSICIAN_REVIEW, TimelineEventType.CONSULTATION_FINALIZED);
+    }
+
+    @Test
     void detailEndpointReturnsMetadataExtractionAndFindingsWhereAvailable() throws Exception {
         LoadedCase loaded = loadTwoDocuments();
 
@@ -386,6 +438,8 @@ class PhysicianTimelineIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.originalFilename").value("timeline-lab-report-a.pdf"))
                 .andExpect(jsonPath("$.extractionStatus").value("EXTRACTED"))
+                .andExpect(jsonPath("$.extractionMethod").value("PDF_TEXT"))
+                .andExpect(jsonPath("$.extractionProvider").value("pdfbox"))
                 .andExpect(jsonPath("$.pageCount").value(1))
                 .andExpect(jsonPath("$.patient.name").value("Ananya Desai"))
                 .andExpect(jsonPath("$.encounter.reportDate").value("09/09/2024"))

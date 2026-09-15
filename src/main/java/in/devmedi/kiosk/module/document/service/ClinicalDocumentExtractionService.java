@@ -4,6 +4,7 @@ import in.devmedi.kiosk.module.document.entity.ClinicalDocument;
 import in.devmedi.kiosk.module.document.entity.ClinicalDocumentExtraction;
 import in.devmedi.kiosk.module.document.extraction.DocumentTextProcessor;
 import in.devmedi.kiosk.module.document.extraction.ExtractionErrorCategory;
+import in.devmedi.kiosk.module.document.extraction.ExtractionMethod;
 import in.devmedi.kiosk.module.document.extraction.ExtractionOutcome;
 import in.devmedi.kiosk.module.document.extraction.ExtractionResult;
 import in.devmedi.kiosk.module.document.extraction.ExtractionStatus;
@@ -85,7 +86,9 @@ public class ClinicalDocumentExtractionService {
                 outcome = ExtractionOutcome.failed(ExtractionErrorCategory.UNKNOWN,
                         "Could not read the stored document: " + ex.getMessage());
             }
-            return extractionRepository.saveAndFlush(ClinicalDocumentExtraction.create(document, outcome));
+            ClinicalDocumentExtraction created = ClinicalDocumentExtraction.create(document, outcome);
+            recordProvenance(created, document.getContentType(), outcome);
+            return extractionRepository.saveAndFlush(created);
         });
 
         findingsService.generateForExtraction(extraction);
@@ -96,5 +99,19 @@ public class ClinicalDocumentExtractionService {
         return documentRepository.findByDocumentId(documentId)
                 .filter(document -> caseId.equals(document.getCompletedCase().getCaseId()))
                 .orElseThrow(() -> new IllegalArgumentException("Document not found in the given case"));
+    }
+
+    private void recordProvenance(ClinicalDocumentExtraction extraction,
+                                  String contentType,
+                                  ExtractionOutcome outcome) {
+        ExtractionMethod method = DocumentTextProcessor.methodFor(contentType);
+        String provider = switch (method) {
+            case PDF_TEXT -> "pdfbox";
+            case OCR_IMAGE -> textProcessor.imageOcrAvailable()
+                    ? textProcessor.imageOcrEngineName()
+                    : textProcessor.imageOcrEngineName() + " (not available)";
+            case NONE -> null;
+        };
+        extraction.recordProvenance(method, provider, null);
     }
 }

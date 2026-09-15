@@ -2,6 +2,7 @@ package in.devmedi.kiosk.module.physician.service;
 
 import in.devmedi.kiosk.module.document.entity.ClinicalDocument;
 import in.devmedi.kiosk.module.document.entity.ClinicalDocumentExtraction;
+import in.devmedi.kiosk.module.document.extraction.ExtractionMethod;
 import in.devmedi.kiosk.module.document.extraction.ExtractionResult;
 import in.devmedi.kiosk.module.document.extraction.ExtractionStatus;
 import in.devmedi.kiosk.module.document.extraction.ExtractionSummary;
@@ -26,8 +27,18 @@ import in.devmedi.kiosk.module.document.findings.model.VitalSign;
 import in.devmedi.kiosk.module.document.findings.repository.ClinicalDocumentFindingsRepository;
 import in.devmedi.kiosk.module.document.repository.ClinicalDocumentExtractionRepository;
 import in.devmedi.kiosk.module.document.repository.ClinicalDocumentRepository;
+import in.devmedi.kiosk.module.encounter.Encounter;
+import in.devmedi.kiosk.module.encounter.EncounterRepository;
+import in.devmedi.kiosk.module.physician.clinicalrecord.ClinicalRecordStatus;
+import in.devmedi.kiosk.module.physician.clinicalrecord.Consultation;
+import in.devmedi.kiosk.module.physician.clinicalrecord.ConsultationRepository;
+import in.devmedi.kiosk.module.physician.entity.CompletedCaseAnswerEntity;
 import in.devmedi.kiosk.module.physician.entity.CompletedCaseEntity;
+import in.devmedi.kiosk.module.physician.repository.CompletedCaseAnswerRepository;
 import in.devmedi.kiosk.module.physician.repository.CompletedCaseRepository;
+import in.devmedi.kiosk.module.physician.review.PhysicianReviewEntry;
+import in.devmedi.kiosk.module.physician.review.PhysicianReviewEntryRepository;
+import in.devmedi.kiosk.module.physician.review.ReviewDecision;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,15 +77,27 @@ public class PhysicianTimelineService {
     private final ClinicalDocumentRepository documentRepository;
     private final ClinicalDocumentExtractionRepository extractionRepository;
     private final ClinicalDocumentFindingsRepository findingsRepository;
+    private final PhysicianReviewEntryRepository reviewRepository;
+    private final CompletedCaseAnswerRepository answerRepository;
+    private final EncounterRepository encounterRepository;
+    private final ConsultationRepository consultationRepository;
 
     public PhysicianTimelineService(CompletedCaseRepository completedCaseRepository,
                                     ClinicalDocumentRepository documentRepository,
                                     ClinicalDocumentExtractionRepository extractionRepository,
-                                    ClinicalDocumentFindingsRepository findingsRepository) {
+                                    ClinicalDocumentFindingsRepository findingsRepository,
+                                    PhysicianReviewEntryRepository reviewRepository,
+                                    CompletedCaseAnswerRepository answerRepository,
+                                    EncounterRepository encounterRepository,
+                                    ConsultationRepository consultationRepository) {
         this.completedCaseRepository = completedCaseRepository;
         this.documentRepository = documentRepository;
         this.extractionRepository = extractionRepository;
         this.findingsRepository = findingsRepository;
+        this.reviewRepository = reviewRepository;
+        this.answerRepository = answerRepository;
+        this.encounterRepository = encounterRepository;
+        this.consultationRepository = consultationRepository;
     }
 
     /**
@@ -147,6 +170,8 @@ public class PhysicianTimelineService {
                     summary.status(),
                     summary.statusLabel(),
                     summary.badgeClass(),
+                    extraction != null ? extraction.getExtractionMethod() : null,
+                    extraction != null ? extraction.getProviderName() : null,
                     hasFindings,
                     labCount,
                     abnormalLabCount,
@@ -229,6 +254,9 @@ public class PhysicianTimelineService {
             pages = List.of();
         }
 
+        ExtractionMethod extractionMethod = extractionOpt.map(ClinicalDocumentExtraction::getExtractionMethod).orElse(null);
+        String extractionProvider = extractionOpt.map(ClinicalDocumentExtraction::getProviderName).orElse(null);
+
         return new DocumentDetailResponse(
                 documentId,
                 doc.getOriginalFilename(),
@@ -241,6 +269,8 @@ public class PhysicianTimelineService {
                 summary.errorCategory(),
                 summary.errorMessage(),
                 summary.extractedAt(),
+                extractionMethod,
+                extractionProvider,
                 summary.pageCount(),
                 pages,
                 patient,
@@ -296,6 +326,8 @@ public class PhysicianTimelineService {
                     0)));
 
             if (extraction != null) {
+                collected.add(extractionEvent(extraction, order));
+
                 Optional<ClinicalDocumentFindings> findingsOpt =
                         findingsRepository.findByExtraction(extraction);
                 if (findingsOpt.isPresent()) {
@@ -303,6 +335,10 @@ public class PhysicianTimelineService {
                 }
             }
         }
+
+        addReviewEvents(collected, caseId);
+        addEncounterEvents(collected, caseId);
+        addConsultationEvents(collected, caseId);
 
         collected.sort(Comparator
                 .comparing((OrderedEvent e) -> !e.isDated())
@@ -312,6 +348,108 @@ public class PhysicianTimelineService {
                 .thenComparingInt(e -> e.event().occurrenceIndex()));
 
         return new TimelineResponse(collected.stream().map(OrderedEvent::event).toList());
+    }
+
+    private OrderedEvent extractionEvent(ClinicalDocumentExtraction extraction, int documentOrder) {
+        ClinicalDocument doc = extraction.getDocument();
+        StringBuilder detail = new StringBuilder();
+        if (extraction.getExtractionMethod() != null) {
+            detail.append(extraction.getExtractionMethod().name());
+        }
+        if (extraction.getProviderName() != null) {
+            if (!detail.isEmpty()) {
+                detail.append(" \u00B7 ");
+            }
+            detail.append(extraction.getProviderName());
+        }
+        detail.append(" \u00B7 ").append(extraction.getPageCount()).append(" page(s)");
+        if (extraction.getErrorMessage() != null) {
+            detail.append(" \u00B7 ").append(extraction.getErrorMessage());
+        }
+        return new OrderedEvent(documentOrder, new TimelineEvent(
+                TimelineEventType.EXTRACTION_COMPLETED,
+                null,
+                "Extraction completed: " + extraction.getStatus().name(),
+                detail.toString(),
+                doc.getDocumentId(),
+                doc.getOriginalFilename(),
+                null,
+                extraction.getExtractedAt(),
+                50));
+    }
+
+    private void addReviewEvents(List<OrderedEvent> collected, String caseId) {
+        List<PhysicianReviewEntry> reviews =
+                reviewRepository.findByCompletedCase_CaseIdOrderByAnswerOrder(caseId);
+        if (reviews.isEmpty()) {
+            return;
+        }
+        Map<Integer, String> answerByOrder = answerRepository
+                .findByCaseIdOrderByAnswerOrder(caseId).stream()
+                .collect(Collectors.toMap(CompletedCaseAnswerEntity::getAnswerOrder,
+                        CompletedCaseAnswerEntity::getAnswer, (a, b) -> a));
+
+        for (PhysicianReviewEntry review : reviews) {
+            String decisionLabel = switch (review.getDecision()) {
+                case ACCEPTED -> "Accepted";
+                case AMENDED -> "Amended";
+                case REJECTED -> "Rejected";
+            };
+            String detail = review.getAmendedText() != null
+                    ? review.getAmendedText()
+                    : (review.getRationale() != null ? "Rationale: " + review.getRationale() : null);
+            String snippet = answerByOrder.get(review.getAnswerOrder());
+            collected.add(new OrderedEvent(Integer.MAX_VALUE, new TimelineEvent(
+                    TimelineEventType.PHYSICIAN_REVIEW,
+                    null,
+                    decisionLabel,
+                    detail,
+                    null,
+                    "case record",
+                    snippet,
+                    review.getDecidedAt(),
+                    review.getAnswerOrder())));
+        }
+    }
+
+    private void addEncounterEvents(List<OrderedEvent> collected, String caseId) {
+        encounterRepository.findByCaseId(caseId)
+                .filter(e -> e.getSubmittedAt() != null)
+                .ifPresent(encounter -> collected.add(new OrderedEvent(Integer.MAX_VALUE, new TimelineEvent(
+                        TimelineEventType.ENCOUNTER_CREATED,
+                        null,
+                        "Clinical intake submitted",
+                        "Encounter " + encounter.getStatus().name()
+                                + (encounter.getNotes() != null ? " \u00B7 " + encounter.getNotes() : ""),
+                        null,
+                        "case record",
+                        null,
+                        encounter.getSubmittedAt(),
+                        1))));
+    }
+
+    private void addConsultationEvents(List<OrderedEvent> collected, String caseId) {
+        consultationRepository.findByCompletedCase_CaseId(caseId)
+                .filter(c -> c.getStatus() == ClinicalRecordStatus.FINALIZED)
+                .ifPresent(consultation -> collected.add(new OrderedEvent(Integer.MAX_VALUE, new TimelineEvent(
+                        TimelineEventType.CONSULTATION_FINALIZED,
+                        null,
+                        "Consultation finalized",
+                        shortSummary(consultation.getAssessment(), consultation.getPlan()),
+                        null,
+                        "case record",
+                        null,
+                        consultation.getFinalizedAt(),
+                        1))));
+    }
+
+    private String shortSummary(String assessment, String plan) {
+        String primary = assessment != null && !assessment.isBlank() ? assessment : plan;
+        if (primary == null) {
+            return null;
+        }
+        String trimmed = primary.strip();
+        return trimmed.length() <= 140 ? trimmed : trimmed.substring(0, 140) + "\u2026";
     }
 
     private void addFindingsEvents(List<OrderedEvent> collected,
@@ -387,6 +525,29 @@ public class PhysicianTimelineService {
                     lab.getSourceSnippet(),
                     uploadTime,
                     base + lab.getOccurrenceIndex())));
+
+            if ("LOW".equals(lab.getAbnormalityStatus()) || "HIGH".equals(lab.getAbnormalityStatus())) {
+                StringBuilder abnormal = new StringBuilder();
+                if (lab.getValue() != null) {
+                    abnormal.append(lab.getValue());
+                }
+                if (lab.getUnit() != null) {
+                    abnormal.append(' ').append(lab.getUnit());
+                }
+                if (lab.getReferenceRange() != null) {
+                    abnormal.append(" \u00B7 reference ").append(lab.getReferenceRange());
+                }
+                collected.add(new OrderedEvent(documentOrder, new TimelineEvent(
+                        TimelineEventType.ABNORMAL_LAB_DETECTED,
+                        null,
+                        lab.getTestName() + " " + lab.getAbnormalityStatus(),
+                        abnormal.isEmpty() ? null : abnormal.toString(),
+                        documentId,
+                        filename,
+                        lab.getSourceSnippet(),
+                        uploadTime,
+                        200 + lab.getOccurrenceIndex())));
+            }
         }
 
         for (ClinicalDocumentFindingsMedication med : findings.getMedications()) {

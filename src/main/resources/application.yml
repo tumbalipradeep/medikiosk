@@ -61,9 +61,18 @@ medikiosk:
     # Local filesystem location where uploaded clinical document binaries are stored.
     upload-dir: ${MEDIKIOSK_UPLOAD_DIR:upload/clinical-documents}
   ocr:
-    # No OCR engine is bundled in this deployment. When a real engine is wired
-    # up as an OcrProvider bean, point this at it and update the provider.
+    # Provider selection for the document text-extraction pipeline. Only engines
+    # that are genuinely bound and verified in this deployment may be reported
+    # as operational. No OCR engine is bundled here, so the honest status of
+    # every engine and language is NOT_IMPLEMENTED.
     provider: local-dev
+    # Languages evaluated for OCR capability (English, Hindi, Telugu).
+    languages:
+      - en
+      - hi
+      - te
+    # Default per-provider timeout a real engine would use.
+    timeout-ms: 15000
   ai:
     # Failover order: primary first. Keys come only from the environment
     # (GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY).

@@ -89,6 +89,26 @@ failures. See `docs/RW2-audit.md`. Bounded HTTP/HTML verification: 21 PASS /
 fresh in-memory database); real browser automation was unavailable in this
 environment.
 
+**M7 — RW3: Document intelligence & hardening (complete).** Document
+uploads are now content-validated by magic bytes (PDF / JPEG / PNG), so a
+MIME-spoofed file is rejected even when its extension and content type agree. A
+new OCR capability architecture declares the honest OCR boundary instead of a
+placeholder: `module/ocr` reports real provider status
+(`NOT_IMPLEMENTED` in this deployment), evaluated languages (English / Hindi /
+Telugu) and a deterministic fallback selection, and refuses to relabel an
+image as extractable. A handwriting-recognition seam exists but is honestly
+`NOT_IMPLEMENTED` — ordinary OCR is never presented as HWR. Nothing is
+fabricated: extraction provenance (method PDF_TEXT / OCR_IMAGE / NONE and
+provider) is persisted and surfaced in the physician workspace and document
+details; the clinical timeline now includes extraction-completed,
+abnormal-lab-detected, physician-review, encounter-submitted and
+consultation-finalized events derived only from persisted data; lab values
+without a printed reference range are always `UNKNOWN`, never judged abnormal.
+Anonymous `/api/capabilities/ocr` and `/api/capabilities/hwr` endpoints expose
+the honest status. See `docs/RW3-audit.md`. Full clean regression:
+85 test classes / 718 tests, zero failures; bounded HTTP/HTML verification
+PASS on a freshly booted in-memory instance.
+
 MediKiosk currently includes:
 
 - Authentication/security
@@ -113,6 +133,8 @@ MediKiosk currently includes:
 - Red-flag triage with physician assessment
 - Medication interaction screening
 - Physician clinical record: triage, clinical summary, consultation
+- Magic-byte document validation (PDF / JPEG / PNG content sniffing)
+- Honest OCR and handwriting-recognition capability boundary with public status endpoints
 
 ## Prerequisites
 
@@ -190,7 +212,8 @@ module/                     # Feature modules
       profile/                  # Patient / physician profiles and picture storage
       admin/                    # Admin console, account management, system settings
       consent/ ai/              # Consent, AI provider adapters
-      appointment/ fhir/ abdm/ his/ ocr/   # Planned / placeholder
+      appointment/ fhir/ abdm/ his/   # Planned / placeholder
+      ocr/                      # OCR / handwriting-recognition capability architecture (honest status)
 src/main/resources/
   application.yml             # PostgreSQL / Flyway configuration
   templates/home.html         # Home page

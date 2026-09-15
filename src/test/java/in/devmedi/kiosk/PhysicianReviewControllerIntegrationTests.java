@@ -308,7 +308,7 @@ class PhysicianReviewControllerIntegrationTests {
 
         mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
                         .file(new MockMultipartFile("file", "xray-report.pdf", "application/pdf",
-                                new byte[]{0x25, 0x50, 0x44, 0x46, 1}))
+                                new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D}))
                         .session(patient)
                         .with(csrf()))
                 .andExpect(status().isOk());

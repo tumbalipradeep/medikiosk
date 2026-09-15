@@ -708,6 +708,12 @@
         statusRow.appendChild(statusBadge);
         extraction.body.appendChild(statusRow);
         extraction.body.appendChild(descriptionRow('Extracted at', data.extractedAt));
+        if (data.extractionMethod) {
+            extraction.body.appendChild(descriptionRow('Method', data.extractionMethod));
+        }
+        if (data.extractionProvider) {
+            extraction.body.appendChild(descriptionRow('Provider', data.extractionProvider));
+        }
         extraction.body.appendChild(descriptionRow('Pages', data.pageCount > 0 ? data.pageCount : 'Not available'));
         if (data.extractionErrorMessage) {
             extraction.body.appendChild(plainTextDiv(data.extractionErrorMessage));

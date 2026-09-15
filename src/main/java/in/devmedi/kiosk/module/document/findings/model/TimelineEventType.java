@@ -8,9 +8,14 @@ package in.devmedi.kiosk.module.document.findings.model;
  */
 public enum TimelineEventType {
     DOCUMENT_UPLOADED,
+    EXTRACTION_COMPLETED,
     REPORT_DATE,
     ENCOUNTER_DATE,
     VITALS,
     LAB_RESULT,
-    MEDICATION
+    ABNORMAL_LAB_DETECTED,
+    MEDICATION,
+    PHYSICIAN_REVIEW,
+    ENCOUNTER_CREATED,
+    CONSULTATION_FINALIZED
 }

@@ -1,8 +1,12 @@
 package in.devmedi.kiosk.module.document.extraction;
 
+import in.devmedi.kiosk.module.ocr.OcrLanguage;
+import in.devmedi.kiosk.module.ocr.OcrProviderStatus;
+import in.devmedi.kiosk.module.ocr.OcrProviderStatusSource;
 import org.springframework.stereotype.Component;
 
 import java.awt.image.BufferedImage;
+import java.util.Set;
 
 /**
  * Deterministic local development implementation of {@link OcrProvider}.
@@ -16,7 +20,7 @@ import java.awt.image.BufferedImage;
  * clinical text.</p>
  */
 @Component
-public class LocalDevOcrProvider implements OcrProvider {
+public class LocalDevOcrProvider implements OcrProvider, OcrProviderStatusSource {
 
     @Override
     public boolean isAvailable() {
@@ -32,5 +36,20 @@ public class LocalDevOcrProvider implements OcrProvider {
     public ExtractionOutcome extract(BufferedImage image) {
         return ExtractionOutcome.unsupported(ExtractionErrorCategory.NO_OCR_ENGINE,
                 "OCR engine is not available in this deployment; image text cannot be extracted");
+    }
+
+    @Override
+    public OcrProviderStatus ocrStatus() {
+        return OcrProviderStatus.NOT_IMPLEMENTED;
+    }
+
+    @Override
+    public long timeoutMillis() {
+        return -1;
+    }
+
+    @Override
+    public Set<OcrLanguage> supportedLanguages() {
+        return Set.of();
     }
 }

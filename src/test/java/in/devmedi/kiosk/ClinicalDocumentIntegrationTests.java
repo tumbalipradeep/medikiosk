@@ -1,5 +1,7 @@
 package in.devmedi.kiosk;
 
+import in.devmedi.kiosk.module.auth.entity.Role;
+import in.devmedi.kiosk.module.auth.entity.User;
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalAnswer;
 import in.devmedi.kiosk.module.clinical.dialogue.ClinicalConversationResult;
@@ -103,7 +105,7 @@ class ClinicalDocumentIntegrationTests {
     @Test
     void patientCanUploadAPdfAndMetadataIsReturned() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-                "file", "lab-report.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46});
+                "file", "lab-report.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D});
 
         mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
                         .file(file)
@@ -113,13 +115,13 @@ class ClinicalDocumentIntegrationTests {
                 .andExpect(jsonPath("$.documentId").value(org.hamcrest.Matchers.startsWith("doc-")))
                 .andExpect(jsonPath("$.originalFilename").value("lab-report.pdf"))
                 .andExpect(jsonPath("$.contentType").value("application/pdf"))
-                .andExpect(jsonPath("$.fileSize").value(4));
+                .andExpect(jsonPath("$.fileSize").value(5));
     }
 
     @Test
     void uploadedFileIsStoredOnDiskUnderAFreshUuidName() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-                "file", "scan.jpg", "image/jpeg", new byte[]{1, 2, 3, 4, 5});
+                "file", "scan.jpg", "image/jpeg", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10});
 
         mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
                         .file(file)
@@ -131,13 +133,13 @@ class ClinicalDocumentIntegrationTests {
         assertThat(doc.getStoredFilename()).isNotEqualTo("scan.jpg").endsWith(".jpg");
         Path stored = Path.of(uploadDir, doc.getStoredFilename());
         assertThat(Files.exists(stored)).isTrue();
-        assertThat(Files.readAllBytes(stored)).containsExactly(1, 2, 3, 4, 5);
+        assertThat(Files.readAllBytes(stored)).containsExactly((byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10);
     }
 
     @Test
     void patientCanListOnlyTheirOwnDocumentsForTheCase() throws Exception {
         mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
-                        .file(new MockMultipartFile("file", "one.pdf", "application/pdf", new byte[]{1, 2, 3}))
+                        .file(new MockMultipartFile("file", "one.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D}))
                         .session(loginPatient())
                         .with(csrf()))
                 .andExpect(status().isOk());
@@ -176,6 +178,71 @@ class ClinicalDocumentIntegrationTests {
     }
 
     @Test
+    void uploadedFileWhoseNameExtensionDoesNotMatchDeclaredContentTypeIsRejected() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "report.png", "image/jpeg", new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47});
+
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(file)
+                        .session(loginPatient())
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("extension does not match")));
+    }
+
+    @Test
+    void mimeSpoofedFileWhosePayloadIsNotTheDeclaredFormatIsRejected() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "fake.png", "image/png", "<html><script>alert(1)</script></html>".getBytes());
+
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(file)
+                        .session(loginPatient())
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("spoofed")));
+    }
+
+    @Test
+    void pdfWhosePayloadDoesNotStartWithPdfMagicIsRejected() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "fake-report.pdf", "application/pdf", "NOTAPDF-JUSTTEXT".getBytes());
+
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(file)
+                        .session(loginPatient())
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("spoofed")));
+    }
+
+    @Test
+    void genuineJpegMagicBytesAreAccepted() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "real-photo.jpeg", "image/jpeg",
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE1, 0x00, 0x10});
+
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(file)
+                        .session(loginPatient())
+                        .with(csrf()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void genuinePngMagicBytesAreAccepted() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "real-scan.png", "image/png",
+                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00});
+
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(file)
+                        .session(loginPatient())
+                        .with(csrf()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void emptyFileIsRejected() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "empty.pdf", "application/pdf", new byte[0]);
 
@@ -207,7 +274,7 @@ class ClinicalDocumentIntegrationTests {
         CompletedCase otherCase = CompletedCase.withNewId(otherResult, otherId);
         casePersistence.save(otherCase, otherId);
 
-        MockMultipartFile file = new MockMultipartFile("file", "x.pdf", "application/pdf", new byte[]{1});
+        MockMultipartFile file = new MockMultipartFile("file", "x.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D});
 
         mockMvc.perform(multipart("/patient/cases/" + otherCase.id() + "/documents")
                         .file(file)
@@ -220,7 +287,7 @@ class ClinicalDocumentIntegrationTests {
     @Test
     void patientCanDeleteTheirOwnDocumentAndTheFileIsRemoved() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-                "file", "delete-me.pdf", "application/pdf", new byte[]{9, 9});
+                "file", "delete-me.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D});
         mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
                         .file(file)
                         .session(loginPatient())
@@ -242,7 +309,7 @@ class ClinicalDocumentIntegrationTests {
     @Test
     void physicianCannotDeleteAPatientsDocument() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-                "file", "mine.pdf", "application/pdf", new byte[]{1});
+                "file", "mine.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D});
         mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
                         .file(file)
                         .session(loginPatient())
@@ -263,5 +330,46 @@ class ClinicalDocumentIntegrationTests {
                         .session(loginPatient())
                         .with(csrf()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void anotherPatientCannotUploadIntoMyCase() throws Exception {
+        User other = userRepository.save(new User("patient_doc_" + System.nanoTime(),
+                "$2a$10$xVtr2X.QvKLsn8HBQP7Ac.qixWbgqX8JOYO1ranOqZkR9t3Ynj5aW",
+                "Other Patient", Role.PATIENT));
+        MockHttpSession otherSession = login(other.getUsername(), "patient123");
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "prying.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D});
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(file)
+                        .session(otherSession)
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("You can only upload documents to your own case"));
+
+        assertThat(documentRepository.findByCompletedCase_CaseIdOrderByUploadedAtAsc(caseId)).isEmpty();
+    }
+
+    @Test
+    void anotherPatientListingMyCaseDocumentsSeesNothing() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "mine.pdf", "application/pdf", new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D});
+        mockMvc.perform(multipart("/patient/cases/" + caseId + "/documents")
+                        .file(file)
+                        .session(loginPatient())
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        User other = userRepository.save(new User("patient_doc_" + System.nanoTime(),
+                "$2a$10$xVtr2X.QvKLsn8HBQP7Ac.qixWbgqX8JOYO1ranOqZkR9t3Ynj5aW",
+                "Other Patient", Role.PATIENT));
+        MockHttpSession otherSession = login(other.getUsername(), "patient123");
+
+        mockMvc.perform(get("/patient/cases/" + caseId + "/documents")
+                        .session(otherSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 }

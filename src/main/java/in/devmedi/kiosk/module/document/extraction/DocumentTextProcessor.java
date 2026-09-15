@@ -23,6 +23,37 @@ public class DocumentTextProcessor {
         this.ocrProvider = ocrProvider;
     }
 
+    /**
+     * @return whether an OCR engine is available for image documents in this
+     *         deployment.
+     */
+    public boolean imageOcrAvailable() {
+        return ocrProvider.isAvailable();
+    }
+
+    /**
+     * @return the honest engine identifier that would process image documents,
+     *         even when unavailable (provenance should record what was missing).
+     */
+    public String imageOcrEngineName() {
+        return ocrProvider.engineName();
+    }
+
+    /**
+     * @return the extraction method this processor would apply for the given
+     *         content type (PDF text layer, OCR image, or none).
+     */
+    public static ExtractionMethod methodFor(String contentType) {
+        if (contentType == null) {
+            return ExtractionMethod.NONE;
+        }
+        return switch (contentType.toLowerCase()) {
+            case "application/pdf" -> ExtractionMethod.PDF_TEXT;
+            case "image/jpeg", "image/png" -> ExtractionMethod.OCR_IMAGE;
+            default -> ExtractionMethod.NONE;
+        };
+    }
+
     public ExtractionOutcome process(Path sourceFile, String contentType) throws IOException {
         String type = contentType == null ? "" : contentType.toLowerCase();
         return switch (type) {

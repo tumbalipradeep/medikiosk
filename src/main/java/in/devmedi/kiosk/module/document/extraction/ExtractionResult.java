@@ -11,14 +11,16 @@ import java.util.List;
  * Render-safe extraction result for one clinical document. All fields are plain
  * values, so no JPA entities or lazy associations leak out of the data layer.
  *
- * @param documentId    the business {@code documentId} of the clinical document
- * @param status        overall extraction status
- * @param errorCategory failure/unsupported category ({@link ExtractionErrorCategory#NONE} when irrelevant)
- * @param errorMessage  human-readable explanation when extraction did not succeed
- * @param extractedText combined document text (page texts joined in order)
- * @param pageCount     number of pages processed
- * @param pages         page-level text in ascending page-number order
- * @param extractedAt   timestamp of the extraction run
+ * @param documentId        the business {@code documentId} of the clinical document
+ * @param status            overall extraction status
+ * @param errorCategory     failure/unsupported category ({@link ExtractionErrorCategory#NONE} when irrelevant)
+ * @param errorMessage      human-readable explanation when extraction did not succeed
+ * @param extractedText     combined document text (page texts joined in order)
+ * @param pageCount         number of pages processed
+ * @param pages             page-level text in ascending page-number order
+ * @param extractedAt       timestamp of the extraction run
+ * @param extractionMethod  how text was extracted (PDF text layer vs OCR), or {@code null}
+ * @param providerName      engine that produced the extraction, or {@code null}
  */
 public record ExtractionResult(String documentId,
                                ExtractionStatus status,
@@ -27,7 +29,9 @@ public record ExtractionResult(String documentId,
                                String extractedText,
                                int pageCount,
                                List<PageText> pages,
-                               Instant extractedAt) {
+                               Instant extractedAt,
+                               ExtractionMethod extractionMethod,
+                               String providerName) {
 
     public record PageText(int pageNumber, String text) {
     }
@@ -45,6 +49,8 @@ public record ExtractionResult(String documentId,
                 entity.getExtractedText(),
                 entity.getPageCount(),
                 pages,
-                entity.getExtractedAt());
+                entity.getExtractedAt(),
+                entity.getExtractionMethod(),
+                entity.getProviderName());
     }
 }

@@ -193,6 +193,8 @@
                                         <td>
                                             <span class="badge" th:class="${item.extractionBadgeClass()}"
                                                   th:text="${item.extractionStatusLabel()}">Text extracted</span>
+                                            <div th:if="${item.extractionMethod()}" class="small text-muted mt-1"
+                                                  th:text="${item.extractionMethod()} + (${item.extractionProvider()})">PDF_TEXT (pdfbox)</div>
                                         </td>
                                         <td class="small">
                                             <div th:if="${item.hasFindings()}" th:classappend="'text-success'">Available</div>

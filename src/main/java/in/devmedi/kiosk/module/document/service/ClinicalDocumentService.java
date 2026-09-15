@@ -4,6 +4,7 @@ import in.devmedi.kiosk.module.auth.entity.User;
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.document.entity.ClinicalDocument;
 import in.devmedi.kiosk.module.document.repository.ClinicalDocumentRepository;
+import in.devmedi.kiosk.module.document.storage.DocumentContentValidator;
 import in.devmedi.kiosk.module.document.storage.SecureFileStorage;
 import in.devmedi.kiosk.module.physician.entity.CompletedCaseEntity;
 import in.devmedi.kiosk.module.physician.repository.CompletedCaseRepository;
@@ -139,6 +140,28 @@ public class ClinicalDocumentService {
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
             throw new IllegalArgumentException("Unsupported content type. Allowed: PDF, JPEG, PNG");
         }
+
+        String expectedContentType = expectedContentTypeFor(ext);
+        if (!expectedContentType.equalsIgnoreCase(contentType)) {
+            throw new IllegalArgumentException("File extension does not match its declared content type");
+        }
+
+        try {
+            DocumentContentValidator.verifyContent(file, expectedContentType);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new IllegalArgumentException("File content cannot be read for verification", e);
+        }
+    }
+
+    private String expectedContentTypeFor(String ext) {
+        return switch (ext) {
+            case ".pdf" -> "application/pdf";
+            case ".jpg", ".jpeg" -> "image/jpeg";
+            case ".png" -> "image/png";
+            default -> throw new IllegalArgumentException("Unsupported file type. Allowed: PDF, JPEG, PNG");
+        };
     }
 
     private String sanitizeFilename(String filename) {

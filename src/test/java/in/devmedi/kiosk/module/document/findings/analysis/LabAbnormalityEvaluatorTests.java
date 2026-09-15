@@ -126,6 +126,15 @@ class LabAbnormalityEvaluatorTests {
     }
 
     @Test
+    void outOfRangeLookingValueWithoutAPrintedRangeIsNeverJudgedAbnormal() {
+        assertThat(LabAbnormalityEvaluator.evaluate("1.2", null)).isEqualTo(AbnormalityStatus.UNKNOWN);
+        assertThat(LabAbnormalityEvaluator.evaluate("250", null)).isEqualTo(AbnormalityStatus.UNKNOWN);
+        assertThat(LabAbnormalityEvaluator.evaluate("2.5", "")).isEqualTo(AbnormalityStatus.UNKNOWN);
+        assertThat(LabAbnormalityEvaluator.evaluate("500", "not a range"))
+                .isEqualTo(AbnormalityStatus.UNKNOWN);
+    }
+
+    @Test
     void invertedRangeIsUnknown() {
         assertThat(LabAbnormalityEvaluator.evaluate("13.5", "17.0 - 13.0"))
                 .isEqualTo(AbnormalityStatus.UNKNOWN);

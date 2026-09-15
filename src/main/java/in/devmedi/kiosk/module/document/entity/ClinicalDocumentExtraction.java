@@ -1,6 +1,7 @@
 package in.devmedi.kiosk.module.document.entity;
 
 import in.devmedi.kiosk.module.document.extraction.ExtractionErrorCategory;
+import in.devmedi.kiosk.module.document.extraction.ExtractionMethod;
 import in.devmedi.kiosk.module.document.extraction.ExtractionOutcome;
 import in.devmedi.kiosk.module.document.extraction.ExtractionResult;
 import in.devmedi.kiosk.module.document.extraction.ExtractionStatus;
@@ -46,6 +47,16 @@ public class ClinicalDocumentExtraction {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ExtractionStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "extraction_method", length = 24)
+    private ExtractionMethod extractionMethod;
+
+    @Column(name = "provider_name", length = 60)
+    private String providerName;
+
+    @Column(name = "source_language", length = 8)
+    private String sourceLanguage;
 
     @Column(name = "extracted_text", columnDefinition = "TEXT")
     private String extractedText;
@@ -101,6 +112,24 @@ public class ClinicalDocumentExtraction {
 
     public ExtractionStatus getStatus() {
         return status;
+    }
+
+    public ExtractionMethod getExtractionMethod() {
+        return extractionMethod;
+    }
+
+    public String getProviderName() {
+        return providerName;
+    }
+
+    public String getSourceLanguage() {
+        return sourceLanguage;
+    }
+
+    public void recordProvenance(ExtractionMethod method, String providerName, String sourceLanguage) {
+        this.extractionMethod = method;
+        this.providerName = providerName;
+        this.sourceLanguage = sourceLanguage;
     }
 
     public String getExtractedText() {

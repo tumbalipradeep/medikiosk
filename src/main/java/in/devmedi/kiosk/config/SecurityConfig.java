@@ -3,6 +3,7 @@ package in.devmedi.kiosk.config;
 import in.devmedi.kiosk.module.auth.security.LoginFailureHandler;
 import in.devmedi.kiosk.module.auth.security.RoleBasedSuccessHandler;
 import in.devmedi.kiosk.module.auth.security.SecurityPolicyProperties;
+import in.devmedi.kiosk.module.ocr.OcrProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +17,7 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties(SecurityPolicyProperties.class)
+@EnableConfigurationProperties({SecurityPolicyProperties.class, OcrProperties.class})
 public class SecurityConfig {
 
     private final RoleBasedSuccessHandler roleBasedSuccessHandler;
@@ -34,6 +35,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/register", "/login", "/error", "/css/**", "/js/**", "/img/**").permitAll()
+                        .requestMatchers("/api/capabilities/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/account/**").authenticated()
                         .requestMatchers("/patient/**").hasRole("PATIENT")

@@ -1,6 +1,7 @@
 package in.devmedi.kiosk.module.document.findings;
 
 import in.devmedi.kiosk.module.document.extraction.ExtractionErrorCategory;
+import in.devmedi.kiosk.module.document.extraction.ExtractionMethod;
 import in.devmedi.kiosk.module.document.extraction.ExtractionStatus;
 import in.devmedi.kiosk.module.document.findings.model.EncounterMetadata;
 import in.devmedi.kiosk.module.document.findings.model.InteractionAnalysisStatus;
@@ -31,6 +32,8 @@ import java.util.List;
  * @param extractionErrorCategory extraction error category
  * @param extractionErrorMessage  extraction error explanation
  * @param extractedAt             extraction timestamp
+ * @param extractionMethod        how text was extracted (PDF text layer vs OCR), or {@code null}
+ * @param extractionProvider      engine that produced the extraction, or {@code null}
  * @param pageCount               page count
  * @param pages                   page-level extracted text
  * @param patient                 decoded patient identifiers, or {@code null}
@@ -52,6 +55,8 @@ public record DocumentDetailResponse(String documentId,
                                      ExtractionErrorCategory extractionErrorCategory,
                                      String extractionErrorMessage,
                                      Instant extractedAt,
+                                     ExtractionMethod extractionMethod,
+                                     String extractionProvider,
                                      int pageCount,
                                      List<ExtractionResult.PageText> pages,
                                      PatientIdentifiers patient,
