@@ -109,6 +109,28 @@ the honest status. See `docs/RW3-audit.md`. Full clean regression:
 85 test classes / 718 tests, zero failures; bounded HTTP/HTML verification
 PASS on a freshly booted in-memory instance.
 
+**M8 — RW1: A professional healthcare website (complete).** RD1 turns the
+kiosk into a coherent, public-facing healthcare website that stays fully
+wired to the real backend. A normal public site (Home / About / Features /
+Privacy / Contact) sits alongside the role portals and is served by real
+controllers with `permitAll` routing; the landing page keeps the demo-mode
+application status live readout and publishes the same honest capability
+status as the API. Role experiences are distinct: patients get clarity on the
+intake journey, physicians a clinical workspace, administrators a control
+center that shows a data-derived capability & integration summary (OCR / HWR /
+conversational AI providers / external-transmission boundary / FHIR transport)
+and the ten most recent persisted audit events. A documented accessibility
+foundation is applied everywhere: visible focus, skip links, keyboard
+navigation, a `medikiosk.prefs` browser-local preference layer for theme
+(system/light/dark), motion (dynamic/standard/reduced with an OS
+reduced-motion default) and text size (standard/large/extra-large), plus a
+responsive top navigation. Nothing is fabricated: every "Live" claim on the
+public site maps to a real implemented endpoint, OCR/HWR remain
+`NOT_IMPLEMENTED`, and external transmission stays local-only. See
+`docs/RD1-audit.md`. Full clean regression: 86 test classes / 726 tests, zero
+failures; bounded HTTP/HTML verification PASS on a freshly booted in-memory
+instance.
+
 MediKiosk currently includes:
 
 - Authentication/security
@@ -135,6 +157,8 @@ MediKiosk currently includes:
 - Physician clinical record: triage, clinical summary, consultation
 - Magic-byte document validation (PDF / JPEG / PNG content sniffing)
 - Honest OCR and handwriting-recognition capability boundary with public status endpoints
+- Public website (Home / About / Features / Privacy / Contact) with honest product claims
+- Accessible, responsive interface with browser-local preference controls (theme / motion / text size)
 
 ## Prerequisites
 

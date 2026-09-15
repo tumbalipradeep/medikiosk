@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Contact · MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Contact - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/publicnav :: publicnav('contact')}"></div>
+
+<main id="main-content">
+    <section class="mk-hero">
+        <div class="container py-5">
+            <div class="col-lg-8 mx-auto text-center mt-lg-3">
+                <span class="mk-eyebrow">Contact</span>
+                <h1 class="display-6 fw-bold mb-3">Get in touch with the project</h1>
+                <p class="lead text-secondary mb-0">
+                    MediKiosk is developed for the SIH26047 problem statement. If you are evaluating
+                    the platform or would like to ask about the implementation, use the contact below.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mk-section">
+        <div class="container">
+            <div class="row g-4 justify-content-center">
+                <div class="col-lg-5">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body p-4">
+                            <h2 class="h5 fw-bold mb-3">Support &amp; feedback</h2>
+                            <p th:if="${supportEmail != null}" class="mb-2">
+                                Email us at
+                                <a th:href="'mailto:' + ${supportEmail}" class="fw-semibold" th:text="${supportEmail}">support@medikiosk.local</a>
+                            </p>
+                            <p th:unless="${supportEmail != null}" class="mb-2 text-muted">
+                                A support address has not been configured in this deployment. Contact your
+                                system administrator.
+                            </p>
+                            <p class="text-muted small mb-0">
+                                This address is configured by administrators in the platform settings
+                                (<code>kiosk.support_email</code>) and is shown here read-only from the
+                                application's own settings store.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body p-4">
+                            <h2 class="h5 fw-bold mb-3">About this deployment</h2>
+                            <p class="text-muted small mb-2">
+                                MediKiosk runs as a local demo deployment for evaluation. It is not a live
+                                clinical service and should not be used for real medical decisions.
+                            </p>
+                            <p class="text-muted small mb-0">
+                                You can inspect the product directly: demo accounts are
+                                <code>patient / patient123</code>, <code>physician / physician123</code>,
+                                and <code>admin / admin123</code>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div th:replace="~{fragments/footer :: sitefooter}"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Features · MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Features - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/publicnav :: publicnav('features')}"></div>
+
+<main id="main-content">
+    <section class="mk-hero">
+        <div class="container py-5">
+            <div class="col-lg-10 mx-auto text-center mt-lg-3">
+                <span class="mk-eyebrow">Features</span>
+                <h1 class="display-6 fw-bold mb-3">Implemented today &mdash; and where to see the proof</h1>
+                <p class="lead text-secondary mb-0">
+                    Every item below is backed by running application behavior. Nothing here is a
+                    decorative showcase; each feature has a place in the product where you can click
+                    through to the real data, state, and security.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mk-section">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h2 class="h5 fw-bold mb-2">Patient intake conversation</h2>
+                            <p class="text-muted small mb-3">
+                                A guided, language-aware conversation (English, Hindi, Telugu, Tamil, Kannada) that collects
+                                the health concern, flags it with deterministic rules, and lets the patient
+                                review before finishing. When no AI provider is configured, intake continues
+                                with a deterministic question planner as a fallback.
+                            </p>
+                            <p class="mb-0"><a th:href="@{/login}" class="link-primary">See it: sign in with the patient demo account &rarr;</a></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h2 class="h5 fw-bold mb-2">Document scan with provenance</h2>
+                            <p class="text-muted small mb-3">
+                                Reports are validated by content (magic bytes), stored securely, and
+                                processed by PDF text extraction (pdfbox). The extraction method,
+                                provider, and source language are recorded and surfaced in the physician
+                                workspace. Image OCR and handwriting recognition honestly report
+                                <code>NOT_IMPLEMENTED</code>.
+                            </p>
+                            <p class="mb-0"><a th:href="@{/api/capabilities/ocr}" class="link-primary">See it: live capability report (OCR) &rarr;</a></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h2 class="h5 fw-bold mb-2">Conservative clinical findings</h2>
+                            <p class="text-muted small mb-3">
+                                Vitals, labs, and medications are parsed deterministically. A lab value
+                                without a printed reference range is marked <code>UNKNOWN</code> &mdash; it is
+                                never upgraded to normal or abnormal. System flags always require clinical review.
+                            </p>
+                            <p class="mb-0"><a th:href="@{/login}" class="link-primary">See it: physician workspace findings &rarr;</a></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h2 class="h5 fw-bold mb-2">Physician review workspace</h2>
+                            <p class="text-muted small mb-3">
+                                Case assignment, an itemized answer review with decision records, a clinical
+                                timeline built from persisted events, and a finalized consultation. The
+                                workspace distinguishes the patient's own words, extracted data, and
+                                physician-reviewed information.
+                            </p>
+                            <p class="mb-0"><a th:href="@{/login}" class="link-primary">See it: sign in with the physician demo account &rarr;</a></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h2 class="h5 fw-bold mb-2">Security &amp; authorization</h2>
+                            <p class="text-muted small mb-3">
+                                Role-based access is enforced by the backend for patient, physician, and
+                                admin routes. Cross-patient uploads and listings are rejected. Login policy
+                                covers lockout, activation state, and forced password change.
+                            </p>
+                            <p class="mb-0"><a th:href="@{/admin/accounts}" class="link-primary">See it: admin account console &rarr;</a></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h2 class="h5 fw-bold mb-2">Audit trail &amp; integration boundaries</h2>
+                            <p class="text-muted small mb-3">
+                                Significant actions create a persisted audit event. FHIR exports and HIS/ABDM
+                                transmission are explicitly local-only in this deployment &mdash; the admin
+                                console shows their honest status rather than pretending they are live.
+                            </p>
+                            <p class="mb-0"><a th:href="@{/privacy}" class="link-primary">See it: how data is handled &rarr;</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-light border mt-4 mb-0" role="note">
+                <strong>Capability honesty.</strong> The application never relabels an unavailable
+                capability as working. OCR, handwriting recognition, and external transmission remain
+                honest <code>NOT_IMPLEMENTED</code> / local-only until a real, credential-verified
+                engine is integrated.
+            </div>
+        </div>
+    </section>
+</main>
+
+<div th:replace="~{fragments/footer :: sitefooter}"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

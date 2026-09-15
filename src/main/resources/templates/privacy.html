@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Privacy · MediKiosk')}">
+    <meta charset="UTF-8">
+    <title>Privacy - MediKiosk</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/publicnav :: publicnav('privacy')}"></div>
+
+<main id="main-content">
+    <section class="mk-hero">
+        <div class="container py-5">
+            <div class="col-lg-10 mx-auto text-center mt-lg-3">
+                <span class="mk-eyebrow">Privacy &amp; data handling</span>
+                <h1 class="display-6 fw-bold mb-3">What MediKiosk does with patient information</h1>
+                <p class="lead text-secondary mb-0">
+                    This page describes the data-handling behaviours that are actually implemented in
+                    the application &mdash; not aspirational policy.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mk-section">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <h2 class="h4 fw-bold mb-3">Identity &amp; consent</h2>
+                    <ul class="mk-value-list">
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Local kiosk identity.</strong> This deployment uses a local, non-ABHA identity. It is not linked to the ABHA ecosystem.</span>
+                        </li>
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Explicit consent.</strong> A patient grants consent for in-clinic processing before the intake conversation begins, and the consent is recorded.</span>
+                        </li>
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>No ABDM / HIS transmission.</strong> Nothing is transmitted to ABDM or an external hospital information system in this deployment.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-lg-6">
+                    <h2 class="h4 fw-bold mb-3">Collection, storage &amp; access</h2>
+                    <ul class="mk-value-list">
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Purpose-limited.</strong> Answers, documents, and findings exist to build a clinical case for physician review.</span>
+                        </li>
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Role-gated reading.</strong> Patient, physician, and admin roles can only reach the data their role is authorized to see; this is enforced in the backend.</span>
+                        </li>
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Document handling.</strong> Uploaded reports are content-validated and stored via a secure storage handler; extractable text is processed by PDFBox only.</span>
+                        </li>
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Audit trail.</strong> Significant actions write a persisted audit event that an administrator can inspect.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="row g-4 mt-1">
+                <div class="col-lg-6">
+                    <h2 class="h4 fw-bold mb-3">Technical privacy controls</h2>
+                    <ul class="mk-value-list">
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Referrer policy.</strong> Pages send a <code>no-referrer</code> policy so clinical page references are never leaked to third-party origins.</span>
+                        </li>
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>No secrets in the repository.</strong> Provider credentials are read from environment variables only; the application contains none.</span>
+                        </li>
+                        <li>
+                            <span class="mk-check" aria-hidden="true">&#10003;</span>
+                            <span><strong>Preference storage is local.</strong> Appearance and motion preferences are stored in the browser only and never sent to the server.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h3 class="h5 fw-bold mb-2">Important scope note</h3>
+                            <p class="text-muted small mb-0">
+                                MediKiosk is a demonstration platform for the SIH26047 problem statement.
+                                Consent in this model governs in-clinic processing only. A future external
+                                integration must enforce its own sharing authorization before any data
+                                leaves the kiosk &mdash; it can never rely on kiosk consent alone.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div th:replace="~{fragments/footer :: sitefooter}"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -7,7 +7,7 @@
 <body class="bg-light d-flex flex-column min-vh-100">
 <div th:replace="~{fragments/nav :: authnav}"></div>
 
-<main class="flex-grow-1 py-5">
+<main class="flex-grow-1 py-5" id="main-content">
     <div class="container">
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
             <div>
@@ -89,19 +89,94 @@
             <div class="col-lg-4">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body">
-                        <h2 class="h5 mb-3">Conversational AI providers</h2>
+                        <h2 class="h5 mb-3">Capability &amp; integration status</h2>
                         <ul class="list-group list-group-flush">
-                            <li class="list-group-item d-flex justify-content-between align-items-center px-0"
-                                th:each="p : ${aiProviders}">
-                                <span th:text="${p.name}">groq</span>
-                                <span class="badge" th:if="${p.enabled}">Configured</span>
-                                <span class="badge text-bg-light border text-muted" th:unless="${p.enabled}">Not configured</span>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>Image OCR <span class="small text-muted" th:text="'(' + ${capabilities.ocrProvider} + ')'">(local-dev)</span></span>
+                                <span class="badge text-bg-light border text-muted"
+                                      th:text="${capabilities.ocrStatus}">NOT_IMPLEMENTED</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>Handwriting recognition <span class="small text-muted" th:text="'(' + ${capabilities.hwrProvider} + ')'">(none)</span></span>
+                                <span class="badge text-bg-light border text-muted"
+                                      th:text="${capabilities.hwrStatus}">NOT_IMPLEMENTED</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>Conversational AI providers</span>
+                                <span class="badge text-bg-secondary"
+                                      th:text="${#lists.size(capabilities.aiProviders)} + ' bound'">0 bound</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>External HIS / ABDM transmission</span>
+                                <span class="badge text-bg-light border text-muted"
+                                      th:text="${capabilities.hisConfigured} ? 'Configured' : 'Local only'">Local only</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>FHIR export transport</span>
+                                <span class="badge text-bg-light border text-muted"
+                                      th:text="${capabilities.fhirTransportBean}">LocalOnlyExportTransport</span>
                             </li>
                         </ul>
+                        <div class="small text-muted mt-3 mb-0">
+                            <p class="mb-1">Each bound AI provider (all read from environment variables, never stored):</p>
+                            <ul class="mb-1">
+                                <li th:each="p : ${capabilities.aiProviders}" class="d-flex justify-content-between align-items-center">
+                                    <span th:text="${p.name}">groq</span>
+                                    <span class="badge" th:if="${p.enabled}">Configured</span>
+                                    <span class="badge text-bg-light border text-muted" th:unless="${p.enabled}">Not configured</span>
+                                </li>
+                            </ul>
+                            <p class="mb-1" th:text="${capabilities.hisTransportLabel}">Local-only (no external transmission)</p>
+                            <p class="mb-0">Patient languages: <span th:text="${#strings.listJoin(capabilities.supportedLanguages, ', ')}">en-IN</span></p>
+                            <a th:href="@{/api/capabilities/ocr}" class="d-inline-block mt-2 link-primary small">Inspect public OCR capability report &rarr;</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <h2 class="h5 mb-3">Recent audit events</h2>
+                        <div th:unless="${hasAuditEvents}" class="text-center text-muted py-4">
+                            No audit events have been recorded yet. Significant actions leave a
+                            persisted audit entry that appears here.
+                        </div>
+                        <div th:if="${hasAuditEvents}" class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-muted">When</th>
+                                        <th class="text-muted">Event</th>
+                                        <th class="text-muted">Actor</th>
+                                        <th class="text-muted">Operation</th>
+                                        <th class="text-muted">Resource</th>
+                                        <th class="text-muted">Outcome</th>
+                                        <th class="text-muted">Case</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="e : ${recentAuditEvents}">
+                                        <td class="small text-muted text-nowrap" th:text="${#temporals.format(e.occurredAt, 'dd MMM HH:mm')}">now</td>
+                                        <td class="small" th:text="${e.eventType}">EVENT</td>
+                                        <td class="small" th:text="${e.actorUsername}">user</td>
+                                        <td class="small" th:text="${e.operation}">OP</td>
+                                        <td class="small" th:text="${e.resourceType}">RES</td>
+                                        <td>
+                                            <span class="badge"
+                                                  th:classappend="${e.outcome == 'SUCCESS'} ? 'text-bg-success' : 'text-bg-danger'"
+                                                  th:text="${e.outcome}">SUCCESS</span>
+                                        </td>
+                                        <td class="small text-muted" th:text="${e.caseId != null ? e.caseId : '-'}">-</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                         <p class="small text-muted mt-3 mb-0">
-                            Provider API keys are read only from environment variables and are never
-                            displayed or stored by MediKiosk. The deterministic fallback keeps intake
-                            working when no provider is available.
+                            Audit writes flow through the application's audit service; this read-only
+                            view shows the most recent ten events recorded in this deployment.
                         </p>
                     </div>
                 </div>

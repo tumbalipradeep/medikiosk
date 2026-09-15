@@ -7,7 +7,7 @@
 <body class="bg-light d-flex flex-column min-vh-100">
 <div th:replace="~{fragments/nav :: authnav}"></div>
 
-<main class="flex-grow-1 py-5">
+<main class="flex-grow-1 py-5" id="main-content">
     <div class="container">
         <div class="card shadow-sm mx-auto" style="max-width: 720px;">
             <div class="card-body p-4 p-md-5">
@@ -77,6 +77,13 @@
                         Complete my history
                     </a>
                     <a th:href="@{/patient/home}" class="btn btn-outline-secondary btn-lg">Refresh</a>
+                </div>
+
+                <div class="alert alert-light border small mt-3 mb-0" role="status">
+                    <strong class="d-block">What happens next?</strong>
+                    After you finish, your answers become a clinical case that a physician reviews
+                    in a secure workspace. You can attach report documents and review everything
+                    before the case is finalized.
                 </div>
             </div>
         </div>

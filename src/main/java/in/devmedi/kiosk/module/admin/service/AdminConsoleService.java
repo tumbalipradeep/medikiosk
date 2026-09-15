@@ -3,11 +3,17 @@ package in.devmedi.kiosk.module.admin.service;
 import in.devmedi.kiosk.module.admin.config.SystemSetting;
 import in.devmedi.kiosk.module.admin.config.SystemSettingRepository;
 import in.devmedi.kiosk.module.ai.provider.ClinicalAiProvider;
+import in.devmedi.kiosk.module.audit.entity.AuditEvent;
+import in.devmedi.kiosk.module.audit.repository.AuditEventRepository;
 import in.devmedi.kiosk.module.auth.entity.Role;
 import in.devmedi.kiosk.module.auth.entity.User;
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
 import in.devmedi.kiosk.module.auth.service.AccountLifecycleService;
 import in.devmedi.kiosk.module.auth.service.AccountValidationException;
+import in.devmedi.kiosk.module.fhir.interop.FhirExportTransport;
+import in.devmedi.kiosk.module.his.HisIntegrationBoundary;
+import in.devmedi.kiosk.module.ocr.OcrCapabilityService;
+import in.devmedi.kiosk.module.ocr.OcrProviderStatus;
 import in.devmedi.kiosk.module.profile.entity.PatientProfile;
 import in.devmedi.kiosk.module.profile.entity.PatientProfileRepository;
 import in.devmedi.kiosk.module.profile.entity.PhysicianProfile;
@@ -17,6 +23,7 @@ import in.devmedi.kiosk.module.voice.language.SupportedLanguage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -40,6 +47,10 @@ public class AdminConsoleService {
     private final SystemSettingRepository settingRepository;
     private final LanguageService languageService;
     private final List<ClinicalAiProvider> aiProviders;
+    private final AuditEventRepository auditEventRepository;
+    private final OcrCapabilityService ocrCapabilityService;
+    private final HisIntegrationBoundary hisIntegrationBoundary;
+    private final FhirExportTransport fhirExportTransport;
 
     public AdminConsoleService(UserRepository userRepository,
                                PatientProfileRepository patientProfileRepository,
@@ -47,7 +58,11 @@ public class AdminConsoleService {
                                AccountLifecycleService lifecycle,
                                SystemSettingRepository settingRepository,
                                LanguageService languageService,
-                               List<ClinicalAiProvider> aiProviders) {
+                               List<ClinicalAiProvider> aiProviders,
+                               AuditEventRepository auditEventRepository,
+                               OcrCapabilityService ocrCapabilityService,
+                               HisIntegrationBoundary hisIntegrationBoundary,
+                               FhirExportTransport fhirExportTransport) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.physicianProfileRepository = physicianProfileRepository;
@@ -55,6 +70,10 @@ public class AdminConsoleService {
         this.settingRepository = settingRepository;
         this.languageService = languageService;
         this.aiProviders = List.copyOf(aiProviders);
+        this.auditEventRepository = auditEventRepository;
+        this.ocrCapabilityService = ocrCapabilityService;
+        this.hisIntegrationBoundary = hisIntegrationBoundary;
+        this.fhirExportTransport = fhirExportTransport;
     }
 
     // ─── Accounts ─────────────────────────────────────────────────────
@@ -263,6 +282,51 @@ public class AdminConsoleService {
                 .toList();
     }
 
+    /**
+     * Honest, data-driven summary of the integration boundaries for the admin
+     * control center. Every value is produced from the bean that implements the
+     * boundary; nothing is hard-coded as "working" or "configured".
+     */
+    @Transactional(readOnly = true)
+    public CapabilitySummary capabilitySummary() {
+        OcrCapabilityService.OcrCapabilitiesResponse ocr = ocrCapabilityService.ocrCapabilities();
+        OcrCapabilityService.HwrCapabilityResponse hwr = ocrCapabilityService.hwrCapability();
+        return new CapabilitySummary(
+                ocr.overallStatus(),
+                ocr.engines().size(),
+                ocr.configuredProvider(),
+                hwr.status(),
+                hwr.provider(),
+                aiProviders(),
+                hisIntegrationBoundary.isConfigured(),
+                hisIntegrationBoundary.transportLabel(),
+                fhirExportTransport.getClass().getSimpleName(),
+                languageService.supportedLanguages().stream().map(SupportedLanguage::code).toList());
+    }
+
+    /**
+     * Read-only recent audit events for the control center. Writes continue to
+     * flow exclusively through {@code AuditService}; this read path only shapes
+     * rows for display.
+     */
+    @Transactional(readOnly = true)
+    public List<AuditEventRow> recentAuditEvents(int limit) {
+        return auditEventRepository.findTop10ByOrderByOccurredAtDesc().stream()
+                .limit(Math.max(1, limit))
+                .map(e -> new AuditEventRow(
+                        e.getId(),
+                        e.getOccurredAt(),
+                        e.getEventType().name(),
+                        e.getActorUsername(),
+                        e.getActorRole(),
+                        e.getOperation(),
+                        e.getResourceType(),
+                        e.getOutcome().name(),
+                        e.getCaseId(),
+                        e.getFailureReason()))
+                .toList();
+    }
+
     // ─── View records ─────────────────────────────────────────────────
 
     public record DashboardMetrics(long patients,
@@ -276,5 +340,29 @@ public class AdminConsoleService {
     }
 
     public record AiProviderStatus(String name, boolean enabled) {
+    }
+
+    public record CapabilitySummary(OcrProviderStatus ocrStatus,
+                                    int ocrEngineCount,
+                                    String ocrProvider,
+                                    OcrProviderStatus hwrStatus,
+                                    String hwrProvider,
+                                    List<AiProviderStatus> aiProviders,
+                                    boolean hisConfigured,
+                                    String hisTransportLabel,
+                                    String fhirTransportBean,
+                                    List<String> supportedLanguages) {
+    }
+
+    public record AuditEventRow(Long id,
+                                Instant occurredAt,
+                                String eventType,
+                                String actorUsername,
+                                String actorRole,
+                                String operation,
+                                String resourceType,
+                                String outcome,
+                                String caseId,
+                                String failureReason) {
     }
 }

@@ -94,6 +94,16 @@ class AdminConsoleIntegrationTests {
     }
 
     @Test
+    void adminDashboardRendersCapabilityStatusAndAuditSections() throws Exception {
+        mockMvc.perform(get("/admin/home").session(admin()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Capability &amp; integration status")))
+                .andExpect(content().string(containsString("NOT_IMPLEMENTED")))
+                .andExpect(content().string(containsString("LocalOnlyExportTransport")))
+                .andExpect(content().string(containsString("Recent audit events")));
+    }
+
+    @Test
     void nonAdminRolesCannotReachConsole() throws Exception {
         mockMvc.perform(get("/admin/home").session(login("patient", "patient123")))
                 .andExpect(status().isForbidden());

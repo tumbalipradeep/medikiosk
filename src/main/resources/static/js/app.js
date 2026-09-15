@@ -2,6 +2,15 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', function () {
+        try {
+            var prefs = JSON.parse(localStorage.getItem('medikiosk.prefs') || '{}');
+            var doc = document.documentElement;
+            if (prefs.theme) doc.setAttribute('data-bs-theme', prefs.theme);
+            if (prefs.motion) doc.setAttribute('data-mk-motion', prefs.motion);
+            if (prefs.textSize) doc.setAttribute('data-mk-textsize', prefs.textSize);
+        } catch (e) {
+            /* preferences are cosmetic; never block rendering */
+        }
         var meta = document.getElementById('kioskMeta');
         if (meta) {
             meta.textContent =

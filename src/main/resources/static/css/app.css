@@ -466,3 +466,301 @@ button[data-state="unavailable"] {
         box-shadow: none;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RD1 — USER PREFERENCES LAYER
+   Applied via data attributes on <html> set from localStorage
+   (medikiosk.prefs) by the head snippet / prefs.js.
+   Defaults (no attribute) preserve the built-in dynamic behaviour.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Motion: Standard — shorter, less springy, single-beat entrances */
+html[data-mk-motion="standard"] {
+    --mk-motion-duration: 220ms;
+    --mk-motion-duration-fast: 140ms;
+    --mk-motion-duration-slow: 300ms;
+    --mk-motion-ease: var(--mk-motion-ease-settle);
+    --mk-motion-lift: translateY(-2px);
+}
+
+/* Motion: Reduced — preserve meaning, drop motion entirely */
+html[data-mk-motion="reduced"] *,
+html[data-mk-motion="reduced"] *::before,
+html[data-mk-motion="reduced"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}
+
+html[data-mk-motion="reduced"] .mk-stagger > * {
+    opacity: 1;
+    animation: none;
+}
+
+html[data-mk-motion="reduced"] .mk-interactive:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+html[data-mk-motion="reduced"] .mk-interactive:active {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Text size: scale rem base so Bootstrap rem-based sizing follows */
+html[data-mk-textsize="large"] {
+    font-size: 112.5%;
+}
+
+html[data-mk-textsize="xlarge"] {
+    font-size: 125%;
+}
+
+/* Dark theme: override the small set of hard-coded light surfaces.
+   Bootstrap 5.3 handles component surfaces via [data-bs-theme="dark"]. */
+html[data-bs-theme="dark"] body.bg-light {
+    background-color: #1b1f24 !important;
+}
+
+html[data-bs-theme="dark"] .mk-hero {
+    background: linear-gradient(135deg, #16222e 0%, #1b2a3a 50%, #123330 100%);
+}
+
+html[data-bs-theme="dark"] footer.bg-white {
+    background-color: #262b30 !important;
+    border-color: #343a40 !important;
+}
+
+html[data-bs-theme="dark"] .chat-window {
+    background: #1b1f24;
+    border-color: #343a40;
+}
+
+html[data-bs-theme="dark"] .chat-message.assistant .chat-bubble {
+    background: #2a2f36;
+    border-color: #343a40;
+    color: #e9ecef;
+}
+
+html[data-bs-theme="dark"] .intake-card,
+html[data-bs-theme="dark"] .journey-progress {
+    background: #1e2329;
+    border-color: #343a40;
+}
+
+html[data-bs-theme="dark"] .medikiosk-brand__logo {
+    background: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RD1 — ACCESSIBILITY FOUNDATION
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+    outline: 3px solid rgba(13, 110, 253, 0.55);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+}
+
+/* Skip link: hidden until focused */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 2100;
+    padding: 0.6rem 1rem;
+    background: var(--medikiosk-primary);
+    color: #ffffff;
+    border-radius: 0 0 0.375rem 0;
+    font-weight: 600;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RD1 — TOP NAVIGATION (shared surface for public + authenticated areas)
+   A plain responsive bar: flex wrapping beats a hidden hamburger for a
+   small, explicit navigation set; touch targets stay large on mobile.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.mk-topnav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 1.25rem;
+    padding: 0.85rem 0;
+}
+
+.mk-topnav__links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.85rem;
+    margin-left: auto;
+}
+
+.mk-topnav__link {
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.375rem;
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+    font-weight: 500;
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.mk-topnav__link:hover,
+.mk-topnav__link:focus-visible,
+.mk-topnav__link.is-active {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    text-decoration: none;
+}
+
+@media (max-width: 575.98px) {
+    .mk-topnav {
+        gap: 0.5rem 0.75rem;
+        padding: 0.75rem 0;
+    }
+    .mk-topnav__links {
+        margin-left: 0;
+        width: 100%;
+        gap: 0.35rem 0.5rem;
+    }
+    .mk-topnav__link {
+        min-height: 2.75rem;
+        padding: 0.5rem 0.7rem;
+    }
+}
+
+/* Body navigation variant used inside authenticated areas */
+.mk-topnav.on-light {
+    background: #ffffff;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.mk-topnav.on-light .mk-topnav__link {
+    color: #495057;
+}
+
+.mk-topnav.on-light .mk-topnav__link:hover,
+.mk-topnav.on-light .mk-topnav__link:focus-visible,
+.mk-topnav.on-light .mk-topnav__link.is-active {
+    background: #e9ecef;
+    color: #212529;
+}
+
+html[data-bs-theme="dark"] .mk-topnav.on-light {
+    background: #1b1f24;
+    border-bottom-color: #343a40;
+}
+
+html[data-bs-theme="dark"] .mk-topnav.on-light .mk-topnav__link {
+    color: #ced4da;
+}
+
+html[data-bs-theme="dark"] .mk-topnav.on-light .mk-topnav__link:hover,
+html[data-bs-theme="dark"] .mk-topnav.on-light .mk-topnav__link:focus-visible {
+    background: #2a2f36;
+    color: #f8f9fa;
+}
+
+.mk-topnav__cta {
+    min-height: 2.5rem;
+    align-items: center;
+    display: inline-flex;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RD1 — PUBLIC SITE SHARED PIECES
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.mk-section {
+    padding: 3.5rem 0;
+}
+
+.mk-section--tinted {
+    background: #f8f9fa;
+}
+
+html[data-bs-theme="dark"] .mk-section--tinted {
+    background: #1b1f24;
+}
+
+.mk-eyebrow {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--medikiosk-primary);
+    margin-bottom: 0.5rem;
+}
+
+.mk-step-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.9rem;
+    background: #e7f1ff;
+    color: var(--medikiosk-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+html[data-bs-theme="dark"] .mk-step-icon {
+    background: #1e3350;
+}
+
+.mk-value-list {
+    display: grid;
+    gap: 1rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mk-value-list li {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.mk-check {
+    flex-shrink: 0;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 50%;
+    background: #d1e7dd;
+    color: #146c43;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+html[data-bs-theme="dark"] .mk-check {
+    background: #123524;
+    color: #6cc08a;
+}
+
+.mk-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+html[data-bs-theme="dark"] .card.mk-surface {
+    border-color: #343a40;
+}

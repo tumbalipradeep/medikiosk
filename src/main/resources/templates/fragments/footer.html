@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="sitefooter">
+<footer class="bg-white border-top py-4 text-center text-muted small">
+    <div class="container">
+        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-2 mb-2">
+            <th:block th:replace="~{fragments/brand :: brand('sm')}"></th:block>
+            <span class="mx-md-3 text-secondary d-none d-md-inline">&middot;</span>
+            <span>
+                <a th:href="@{/about}" class="link-secondary">About</a>
+                &middot;
+                <a th:href="@{/features}" class="link-secondary">Features</a>
+                &middot;
+                <a th:href="@{/privacy}" class="link-secondary">Privacy</a>
+                &middot;
+                <a th:href="@{/contact}" class="link-secondary">Contact</a>
+            </span>
+        </div>
+        <div>
+            &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot;
+            SIH26047 &middot; Local demo deployment
+        </div>
+    </div>
+</footer>
+</html>

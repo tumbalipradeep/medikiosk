@@ -44,6 +44,10 @@ public class AdminConsoleController {
         model.addAttribute("metrics", console.metrics());
         model.addAttribute("recentAccounts", console.accounts().stream().limit(5).toList());
         model.addAttribute("aiProviders", console.aiProviders());
+        model.addAttribute("capabilities", console.capabilitySummary());
+        var recentAuditEvents = console.recentAuditEvents(10);
+        model.addAttribute("recentAuditEvents", recentAuditEvents);
+        model.addAttribute("hasAuditEvents", !recentAuditEvents.isEmpty());
         return "admin/home";
     }
 
