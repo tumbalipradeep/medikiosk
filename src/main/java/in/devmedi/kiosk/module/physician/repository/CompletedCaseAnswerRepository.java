@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CompletedCaseAnswerRepository extends JpaRepository<CompletedCaseAnswerEntity, Long> {
 
@@ -17,6 +18,9 @@ public interface CompletedCaseAnswerRepository extends JpaRepository<CompletedCa
             + "join fetch a.completedCase where a.completedCase.caseId = :caseId "
             + "order by a.answerOrder asc")
     List<CompletedCaseAnswerEntity> findByCaseIdOrderByAnswerOrder(@Param("caseId") String caseId);
+
+    /** Single answer lookup for the patient correction loop's snapshot verification. */
+    Optional<CompletedCaseAnswerEntity> findByCompletedCase_CaseIdAndAnswerOrder(String caseId, int answerOrder);
 
     void deleteByCompletedCase_CaseId(String caseId);
 }

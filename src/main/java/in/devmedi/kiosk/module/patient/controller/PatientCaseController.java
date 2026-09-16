@@ -6,6 +6,7 @@ import in.devmedi.kiosk.module.clinical.dialogue.ClinicalConversationResult;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlag;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagEvaluator;
 import in.devmedi.kiosk.module.clinical.redflag.RedFlagSeverity;
+import in.devmedi.kiosk.module.patient.correction.PatientCorrectionService;
 import in.devmedi.kiosk.module.physician.service.CompletedCase;
 import in.devmedi.kiosk.module.physician.service.CompletedCasePersistenceService;
 import org.springframework.http.HttpStatus;
@@ -36,11 +37,14 @@ public class PatientCaseController {
 
     private final CompletedCasePersistenceService casePersistence;
     private final RedFlagEvaluator redFlagEvaluator;
+    private final PatientCorrectionService correctionService;
 
     public PatientCaseController(CompletedCasePersistenceService casePersistence,
-                                 RedFlagEvaluator redFlagEvaluator) {
+                                 RedFlagEvaluator redFlagEvaluator,
+                                 PatientCorrectionService correctionService) {
         this.casePersistence = casePersistence;
         this.redFlagEvaluator = redFlagEvaluator;
+        this.correctionService = correctionService;
     }
 
     @GetMapping("/{caseId}/summary")
@@ -53,19 +57,32 @@ public class PatientCaseController {
                 .filter(c -> principal.getId().equals(c.userId()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Case not found for this patient"));
-        return toSummary(completed);
+        // The patient's own corrections for this case, so the review UI can
+        // show original and corrected values side by side. Ownership is checked
+        // inside correctionsByOrder (same 404 semantics).
+        List<PatientCorrectionService.CorrectionView> corrections =
+                correctionService.correctionsByOrder(caseId, principal.getId()).values().stream()
+                        .map(PatientCorrectionService.CorrectionView::from)
+                        .toList();
+        return toSummary(completed, corrections);
     }
 
-    private PatientCaseSummary toSummary(CompletedCase completed) {
+    private PatientCaseSummary toSummary(CompletedCase completed,
+                                         List<PatientCorrectionService.CorrectionView> corrections) {
         ClinicalConversationResult result = completed.result();
         int flaggedCount = 0;
         List<SummaryItem> items = new java.util.ArrayList<>();
+        // answerOrder mirrors the persisted answer order exactly (persistence
+        // stores result.all() at index i), so patient corrections target the
+        // same stable identity the physician workspace uses.
+        int order = 0;
         for (ClinicalAnswer answer : result.all()) {
             List<RedFlag> flags = redFlagEvaluator.evaluate(answer.answer());
             if (!flags.isEmpty()) {
                 flaggedCount += flags.size();
             }
             items.add(new SummaryItem(
+                    order,
                     answer.questionId(),
                     answer.section(),
                     answer.displayedQuestionText(),
@@ -73,9 +90,11 @@ public class PatientCaseController {
                     answer.questionSource().name(),
                     answer.answerSource().name(),
                     answer.language()));
+            order++;
         }
         RedFlagSeverity severity = flaggedCount > 0 ? RedFlagSeverity.URGENT : RedFlagSeverity.NONE;
-        return new PatientCaseSummary(completed.id(), items.size(), flaggedCount, severity.name(), List.copyOf(items));
+        return new PatientCaseSummary(completed.id(), items.size(), flaggedCount, severity.name(),
+                List.copyOf(items), List.copyOf(corrections));
     }
 
     /** Patient-safe review payload. */
@@ -83,11 +102,13 @@ public class PatientCaseController {
                                      int answeredCount,
                                      int flaggedCount,
                                      String flaggedSeverity,
-                                     List<SummaryItem> answers) {
+                                     List<SummaryItem> answers,
+                                     List<PatientCorrectionService.CorrectionView> corrections) {
     }
 
     /** One answer shown in the patient review. */
-    public record SummaryItem(String questionId,
+    public record SummaryItem(int answerOrder,
+                              String questionId,
                               String section,
                               String displayedText,
                               String answer,

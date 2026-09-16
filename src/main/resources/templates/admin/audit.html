@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Audit trail - MediKiosk Admin')}">
+    <meta charset="UTF-8">
+    <title>Audit trail - MediKiosk Admin</title>
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+<div th:replace="~{fragments/nav :: authnav}"></div>
+
+<main class="flex-grow-1 py-4">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+                <h1 class="h4 fw-bold mb-1 medikiosk-title">Audit trail</h1>
+                <p class="text-muted mb-0 small">
+                    Read-only security and operational history. Entries are written by the
+                    application's audit service and can never be edited here.
+                </p>
+            </div>
+            <a th:href="@{/admin/home}" class="btn btn-outline-secondary btn-sm">&larr; Control center</a>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <form method="get" th:action="@{/admin/audit}" class="row g-2 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small text-muted mb-1" for="fEventType">Event type</label>
+                        <select id="fEventType" name="eventType" class="form-select form-select-sm">
+                            <option value="">All events</option>
+                            <option th:each="ev : ${events}" th:value="${ev.name()}"
+                                    th:text="${ev.name()}"
+                                    th:selected="${ev.name() == eventTypeFilter}">EVENT</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small text-muted mb-1" for="fOutcome">Outcome</label>
+                        <select id="fOutcome" name="outcome" class="form-select form-select-sm">
+                            <option value="">All outcomes</option>
+                            <option th:each="oc : ${outcomes}" th:value="${oc.name()}"
+                                    th:text="${oc.name()}"
+                                    th:selected="${oc.name() == outcomeFilter}">SUCCESS</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small text-muted mb-1" for="fActor">Actor (contains)</label>
+                        <input id="fActor" name="actor" type="text" class="form-control form-control-sm"
+                               th:value="${actorFilter}" placeholder="e.g. admin" autocomplete="off">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small text-muted mb-1" for="fCaseId">Case id</label>
+                        <input id="fCaseId" name="caseId" type="text" class="form-control form-control-sm"
+                               th:value="${caseIdFilter}" placeholder="case-…" autocomplete="off">
+                    </div>
+                    <div class="col-6 col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
+                        <a th:href="@{/admin/audit}" class="btn btn-outline-secondary btn-sm">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div th:unless="${hasEvents}" class="text-center text-muted py-5">
+                    No audit events match these filters. Broaden or reset the filters to see
+                    recorded activity.
+                </div>
+                <div th:if="${hasEvents}" class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-muted">When</th>
+                                <th class="text-muted">Event</th>
+                                <th class="text-muted">Actor</th>
+                                <th class="text-muted">Role</th>
+                                <th class="text-muted">Operation</th>
+                                <th class="text-muted">Resource</th>
+                                <th class="text-muted">Outcome</th>
+                                <th class="text-muted">Case</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="e : ${auditPage.content}">
+                                <td class="small text-muted text-nowrap"
+                                    th:text="${#temporals.format(e.occurredAt, 'dd MMM yyyy HH:mm:ss')}">now</td>
+                                <td class="small" th:text="${e.eventType}">EVENT</td>
+                                <td class="small" th:text="${e.actorUsername}">user</td>
+                                <td class="small text-muted" th:text="${e.actorRole}">ROLE</td>
+                                <td class="small" th:text="${e.operation}">OP</td>
+                                <td class="small text-break" th:text="${e.resourceType}">RES</td>
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${e.outcome == 'SUCCESS'} ? 'text-bg-success' : 'text-bg-danger'"
+                                          th:text="${e.outcome}">SUCCESS</span>
+                                </td>
+                                <td class="small text-muted" th:text="${e.caseId != null ? e.caseId : '-'}">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div th:if="${hasEvents}" class="d-flex flex-wrap justify-content-between align-items-center mt-3 gap-2">
+                    <p class="small text-muted mb-0"
+                       th:text="${'Showing ' + (auditPage.number * auditPage.size + 1) + '–' + (auditPage.number * auditPage.size + auditPage.numberOfElements) + ' of ' + auditPage.totalElements + ' events'}">
+                        Showing events
+                    </p>
+                    <nav aria-label="Audit trail pages" th:if="${auditPage.totalPages > 1}">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item" th:classappend="${auditPage.first} ? 'disabled'">
+                                <a class="page-link"
+                                   th:href="@{/admin/audit(eventType=${eventTypeFilter}, actor=${actorFilter}, outcome=${outcomeFilter}, caseId=${caseIdFilter}, page=${auditPage.number - 1}, size=${pageSize})}"
+                                   aria-label="Previous page">&larr;</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link"
+                                      th:text="${(auditPage.number + 1) + ' / ' + auditPage.totalPages}">1 / 1</span>
+                            </li>
+                            <li class="page-item" th:classappend="${auditPage.last} ? 'disabled'">
+                                <a class="page-link"
+                                   th:href="@{/admin/audit(eventType=${eventTypeFilter}, actor=${actorFilter}, outcome=${outcomeFilter}, caseId=${caseIdFilter}, page=${auditPage.number + 1}, size=${pageSize})}"
+                                   aria-label="Next page">&rarr;</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-white border-top py-3 text-center text-muted small">
+    &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> MediKiosk &middot; SIH26047
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

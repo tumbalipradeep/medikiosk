@@ -102,6 +102,12 @@
                                       th:text="${capabilities.hwrStatus}">NOT_IMPLEMENTED</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>Patient voice (ASR/TTS) <span class="small text-muted"
+                                      th:text="'(' + ${capabilities.voiceStatus.asrProvider} + '/' + ${capabilities.voiceStatus.ttsProvider} + ')'">(unavailable/unavailable)</span></span>
+                                <span class="badge" th:classappend="${capabilities.voiceStatus.asrAvailable or capabilities.voiceStatus.ttsAvailable} ? 'text-bg-success' : 'text-bg-light border text-muted'"
+                                      th:text="${capabilities.voiceStatus.asrAvailable or capabilities.voiceStatus.ttsAvailable} ? 'Provider engaged' : 'UNAVAILABLE'">UNAVAILABLE</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                 <span>Conversational AI providers</span>
                                 <span class="badge text-bg-secondary"
                                       th:text="${#lists.size(capabilities.aiProviders)} + ' bound'">0 bound</span>
@@ -177,6 +183,7 @@
                         <p class="small text-muted mt-3 mb-0">
                             Audit writes flow through the application's audit service; this read-only
                             view shows the most recent ten events recorded in this deployment.
+                            <a th:href="@{/admin/audit}">Open the full filterable audit trail &rarr;</a>
                         </p>
                     </div>
                 </div>

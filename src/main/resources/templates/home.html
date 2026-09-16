@@ -160,7 +160,8 @@
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                     <span>Conversational AI (credential-gated, fallback offline)</span>
-                                    <span class="badge text-bg-warning">Depending on key</span>
+                                    <span class="badge" th:classappend="${aiConfigured} ? 'text-bg-success' : 'text-bg-warning'"
+                                          th:text="${aiConfigured} ? 'Configured' : 'Depending on key'">Depending on key</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                     <span>Image OCR &amp; handwriting recognition</span>

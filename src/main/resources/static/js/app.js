@@ -18,9 +18,11 @@
                 ['Auth', 'Patient', 'Consent', 'Clinical', 'AI', 'OCR', 'Voice', 'AYUSH', 'Audit', 'Physician', 'FHIR', 'Documents'].join(' \u00b7 ') +
                 ' \u00b7 local demo \u00b7 no ABHA / ABDM / HIS transmission';
         }
-        var statusElement = document.getElementById('appStatus');
+        var statusElement = document.getElementById('appStatusLive');
         if (statusElement) {
-            fetch('actuator/health', {headers: {'Accept': 'application/vnd.spring-boot.actuator.v3+json'}})
+            // Absolute path: the badge only exists on the landing page, but the
+            // fetch must not depend on the current page URL if it ever does.
+            fetch('/actuator/health', {headers: {'Accept': 'application/vnd.spring-boot.actuator.v3+json'}})
                 .then(function (response) {
                     if (!response.ok) {
                         throw new Error('health check failed');

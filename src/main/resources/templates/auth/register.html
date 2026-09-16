@@ -41,18 +41,15 @@
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
                         <input type="password" id="password" name="password" class="form-control"
-                               minlength="10" autocomplete="new-password" required>
+                               minlength="6" autocomplete="new-password" required>
                         <div class="form-text">
-                            At least <span th:text="${minPasswordLength}">10</span> characters with
-                            <span th:if="${requireUppercase}">an uppercase letter, </span>
-                            <span th:if="${requireDigit}">a digit, </span>
-                            <span th:if="${requireSpecial}">a special character</span>.
+                            At least <span th:text="${minPasswordLength}">6</span> characters. Any combination of characters is acceptable.
                         </div>
                     </div>
                     <div class="mb-4">
                         <label for="confirmPassword" class="form-label">Confirm password</label>
                         <input type="password" id="confirmPassword" name="confirmPassword" class="form-control"
-                               minlength="10" autocomplete="new-password" required>
+                               minlength="6" autocomplete="new-password" required>
                     </div>
                     <button type="submit" class="btn btn-primary w-100 py-2">Create account</button>
                 </form>

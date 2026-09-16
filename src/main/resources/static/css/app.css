@@ -14,6 +14,15 @@
     --mk-motion-ease-exit: cubic-bezier(0.4, 0, 0.2, 1);    /* ease out for exits */
     --mk-motion-scale-press: 0.97;
     --mk-motion-lift: translateY(-6px);
+
+    /* ─── RD2 spatial interaction tokens ─────────────────────────
+       Physical press/release feel and restrained surface elevation.
+       Transform/opacity only; never layout properties. */
+    --mk-motion-spring-release: cubic-bezier(0.34, 1.4, 0.64, 1); /* return overshoot */
+    --mk-motion-press-scale: 0.965;
+    --mk-motion-lift-rest: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --mk-motion-lift-raised: 0 10px 24px rgba(15, 23, 42, 0.13);
+    --mk-dialog-origin: 50% 30%;
 }
 
 body {
@@ -295,6 +304,39 @@ button[data-state="unavailable"] {
     .btn-lg-mobile {
         min-height: 3.5rem;
         font-size: 1.05rem;
+    }
+}
+
+/* ── RD2 mobile intake: reachable controls and comfortable targets on
+   small viewports. Layout-only adjustments; no information is hidden. ── */
+@media (max-width: 575.98px) {
+    .review-answers {
+        max-height: none; /* the page scrolls; an inner scroll trap hurts one-hand use */
+    }
+
+    .review-item {
+        padding: 0.65rem 0;
+    }
+
+    .review-question {
+        font-size: 0.95rem;
+    }
+
+    /* Chat answer input keeps a comfortable thumb target. */
+    #messageInput {
+        min-height: 3rem;
+        font-size: 1rem; /* prevents iOS zoom-on-focus (which needs >=16px) */
+    }
+
+    #sendButton {
+        min-height: 3rem;
+        min-width: 3.5rem;
+    }
+
+    .mk-correction-dialog {
+        max-width: none;
+        margin-bottom: 0;
+        align-self: flex-end; /* dialog sits low, within thumb reach */
     }
 }
 
@@ -763,4 +805,276 @@ html[data-bs-theme="dark"] .mk-check {
 
 html[data-bs-theme="dark"] .card.mk-surface {
     border-color: #343a40;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RD2 — PHYSICAL / SPATIAL INTERACTION
+   Tactile press/release, restrained surface elevation, origin-aware
+   dialog entrances, and spatially-moving navigation indication — all
+   through transform/opacity/clip-path on top of the existing motion
+   tokens. No parallax, particles, or scroll effects.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Buttons: compress under press, spring back with a tiny overshoot. */
+.btn {
+    transition: transform var(--mk-motion-duration-fast) var(--mk-motion-spring-release),
+                box-shadow var(--mk-motion-duration-fast) var(--mk-motion-ease-settle);
+}
+
+.btn:active {
+    transform: scale(var(--mk-motion-press-scale));
+    transition-duration: 70ms; /* fast compression */
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--medikiosk-primary);
+    outline-offset: 2px;
+}
+
+/* Cards: restrained spatial lift on hover for genuinely interactive cards. */
+.card.mk-liftable {
+    box-shadow: var(--mk-motion-lift-rest);
+    transition: transform var(--mk-motion-duration-fast) var(--mk-motion-ease-settle),
+                box-shadow var(--mk-motion-duration-fast) var(--mk-motion-ease-settle);
+}
+
+.card.mk-liftable:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--mk-motion-lift-raised);
+}
+
+/* Dialogs: origin-aware entrance using the existing magic-lamp keyframes. */
+.modal-content.mk-dialog-in {
+    animation: mk-lamp-in var(--mk-motion-duration-slow) var(--mk-motion-ease-settle) both;
+    transform-origin: var(--mk-dialog-origin);
+}
+
+/* Navigation: active indication moves spatially instead of jumping. */
+.mk-topnav__link {
+    transition: color var(--mk-motion-duration-fast) var(--mk-motion-ease-settle),
+                background-color var(--mk-motion-duration-fast) var(--mk-motion-ease-settle),
+                transform var(--mk-motion-duration-fast) var(--mk-motion-spring-release);
+}
+
+.mk-topnav__link.is-active {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Intake: chat bubbles enter with a small rise-and-settle (transform only). */
+@keyframes mk-bubble-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.99);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.chat-message {
+    animation: mk-bubble-in var(--mk-motion-duration-fast) var(--mk-motion-ease-settle) both;
+}
+
+/* Chat window: no entrance animation on the scroll container itself, so
+   streaming messages do not re-trigger surface movement. */
+
+/* RD2 reduced-motion: nonessential spatial motion is removed while all
+   information stays fully visible. Static state changes remain. */
+@media (prefers-reduced-motion: reduce) {
+    .btn,
+    .btn:active {
+        transition: none;
+        transform: none;
+    }
+
+    .card.mk-liftable,
+    .card.mk-liftable:hover {
+        transition: none;
+        transform: none;
+    }
+
+    .modal-content.mk-dialog-in {
+        animation: none;
+    }
+
+    .mk-topnav__link {
+        transition: color var(--mk-motion-duration-fast) var(--mk-motion-ease-settle),
+                    background-color var(--mk-motion-duration-fast) var(--mk-motion-ease-settle);
+    }
+
+    .mk-topnav__link.is-active {
+        transform: none;
+    }
+
+    .chat-message {
+        animation: none;
+    }
+}
+
+html[data-mk-motion="reduced"] .btn,
+html[data-mk-motion="reduced"] .btn:active {
+    transition: none;
+    transform: none;
+}
+
+html[data-mk-motion="reduced"] .card.mk-liftable,
+html[data-mk-motion="reduced"] .card.mk-liftable:hover {
+    transition: none;
+    transform: none;
+}
+
+html[data-mk-motion="reduced"] .modal-content.mk-dialog-in {
+    animation: none;
+}
+
+html[data-mk-motion="reduced"] .chat-message {
+    animation: none;
+}
+
+html[data-mk-motion="reduced"] .mk-topnav__link.is-active {
+    transform: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RD2 — FAILURE-FIRST FEEDBACK
+   Inline, accessible, recoverable error feedback. No browser alert().
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.mk-feedback {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid;
+    font-size: 0.925rem;
+    animation: mk-bubble-in var(--mk-motion-duration-fast) var(--mk-motion-ease-settle) both;
+}
+
+.mk-feedback--error {
+    background: #f8d7da;
+    border-color: #f1aeb5;
+    color: #58151c;
+}
+
+.mk-feedback--session {
+    background: #fff3cd;
+    border-color: #ffe69c;
+    color: #664d03;
+}
+
+.mk-feedback--network {
+    background: #cff4fc;
+    border-color: #9eeaf9;
+    color: #055160;
+}
+
+.mk-feedback__text {
+    flex-grow: 1;
+}
+
+.mk-feedback__action {
+    display: inline-block;
+    margin-left: 0.5rem;
+    font-weight: 600;
+    color: inherit;
+}
+
+.mk-feedback__dismiss {
+    border: none;
+    background: none;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 0.25rem;
+    cursor: pointer;
+    color: inherit;
+}
+
+.mk-session-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1080;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background: #fff3cd;
+    border-bottom: 1px solid #ffe69c;
+    color: #664d03;
+    font-weight: 500;
+}
+
+.mk-session-bar .mk-feedback__action {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mk-feedback {
+        animation: none;
+    }
+}
+
+html[data-mk-motion="reduced"] .mk-feedback {
+    animation: none;
+}
+
+/* ── Patient correction loop ───────────────────────────────────────
+   Additive-evidence correction UI: original value stays visible while the
+   patient proposes what it should say. Mirrors the existing feedback and
+   dialog language; transforms/opacity only for motion. */
+
+.mk-correction-badge {
+    border-left: 3px solid var(--bs-info, #0dcaf0);
+    padding-left: 0.5rem;
+}
+
+.mk-correction-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: mk-bubble-in 160ms var(--mk-motion-ease-settle) both;
+}
+
+.mk-correction-dialog {
+    background: #fff;
+    border-radius: var(--bs-border-radius-lg, 0.5rem);
+    box-shadow: 0 1rem 3rem rgba(15, 23, 42, 0.25);
+    width: 100%;
+    max-width: 480px;
+    max-height: min(85vh, 640px);
+    overflow-y: auto;
+    padding: 1.25rem;
+    animation: mk-spring-in 240ms var(--mk-motion-ease-settle) both;
+    transform-origin: center bottom;
+}
+
+.mk-correction-original {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: var(--bs-border-radius-sm, 0.25rem);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mk-correction-overlay,
+    .mk-correction-dialog {
+        animation: none;
+    }
+}
+
+html[data-mk-motion="reduced"] .mk-correction-overlay,
+html[data-mk-motion="reduced"] .mk-correction-dialog {
+    animation: none;
 }

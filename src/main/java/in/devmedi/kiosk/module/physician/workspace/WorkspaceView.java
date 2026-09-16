@@ -4,11 +4,12 @@ import in.devmedi.kiosk.module.document.findings.DocumentWorkspaceItem;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Complete physician case workspace model, assembled from persisted case data,
- * persisted review decisions, deterministically re-derived flags, and existing
- * document/timeline data.
+ * persisted review decisions, patient corrections, deterministically re-derived
+ * flags, and existing document/timeline data.
  */
 public record WorkspaceView(String caseId,
                             Instant completedAt,
@@ -25,5 +26,7 @@ public record WorkspaceView(String caseId,
                             String fhirUrl,
                             boolean assigned,
                             String assigneeLabel,
-                            boolean assignedToMe) {
+                            boolean assignedToMe,
+                            Map<Integer, Integer> correctionCountsByOrder,
+                            int correctionCount) {
 }

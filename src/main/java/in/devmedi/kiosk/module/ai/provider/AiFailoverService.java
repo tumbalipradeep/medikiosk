@@ -82,4 +82,24 @@ public class AiFailoverService {
         }
         return false;
     }
+
+    /**
+     * Enabled-state of every bound provider, in failover order.
+     *
+     * <p>This is the honest, configuration-level view of the conversational-AI
+     * capability: a provider is {@code enabled} only when its settings are
+     * present and its API key is available in the environment. No network call
+     * is made and no credential value is exposed.</p>
+     */
+    public List<AiProviderEnabled> providerStatuses() {
+        List<AiProviderEnabled> statuses = new ArrayList<>(orderedProviders.size());
+        for (ClinicalAiProvider provider : orderedProviders) {
+            statuses.add(new AiProviderEnabled(provider.getName(), provider.isEnabled()));
+        }
+        return List.copyOf(statuses);
+    }
+
+    /** One bound provider's configuration-level enabled state (no secrets). */
+    public record AiProviderEnabled(String name, boolean enabled) {
+    }
 }

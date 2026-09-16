@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="prepaint">
+    <script th:inline="javascript" th:if="${mkDisplayPreferences != null}">
+        window.__mkPrefSeed = {
+            theme: /*[[${mkDisplayPreferences.theme}]]*/ null,
+            motion: /*[[${mkDisplayPreferences.motion}]]*/ null,
+            textSize: /*[[${mkDisplayPreferences.textSize}]]*/ null
+        };
+    </script>
+    <script>
+        (function () {
+            'use strict';
+            var doc = document.documentElement;
+            var seed = window.__mkPrefSeed || {};
+            var prefs = {};
+            try {
+                prefs = JSON.parse(localStorage.getItem('medikiosk.prefs') || '{}') || {};
+            } catch (e) {
+                prefs = {};
+            }
+            function pick(key) {
+                if (prefs[key]) return prefs[key];
+                if (seed[key]) return seed[key];
+                return null;
+            }
+            var theme = pick('theme');
+            if (theme && theme !== 'system') doc.setAttribute('data-bs-theme', theme);
+            var motion = pick('motion');
+            if (motion && motion !== 'dynamic') doc.setAttribute('data-mk-motion', motion);
+            var textSize = pick('textSize');
+            if (textSize && textSize !== 'standard') doc.setAttribute('data-mk-textsize', textSize);
+        })();
+    </script>
+</th:block>
+</html>

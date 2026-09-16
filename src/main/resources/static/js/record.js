@@ -16,7 +16,12 @@
             headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(payload);
         }
-        return fetch(url, options);
+        return MkFetch(url, options).catch(function (error) {
+            if (window.MkFeedback && error && error.kind === 'session') {
+                window.MkFeedback.showSessionBar();
+            }
+            throw error;
+        });
     }
 
     function caseUrl(path) {

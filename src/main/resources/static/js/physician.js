@@ -24,7 +24,43 @@
             headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body);
         }
-        return fetch(url, options);
+        return MkFetch(url, options).catch(function (error) {
+            if (window.MkFeedback && error && error.kind === 'session') {
+                window.MkFeedback.showSessionBar();
+            }
+            throw error;
+        });
+    }
+
+    // Inline, accessible feedback container for one answer entry.
+    function entryFeedback(entry) {
+        var box = entry.querySelector('.mk-entry-feedback');
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'mk-entry-feedback';
+            box.setAttribute('aria-live', 'polite');
+            entry.appendChild(box);
+        }
+        return box;
+    }
+
+    // Typed errors (session/network) get the shared honest handling;
+    // plain errors show their own message or the fallback.
+    function reportError(error, container, fallbackMessage) {
+        if (window.MkFeedback) {
+            if (error && error.kind) {
+                window.MkFeedback.handle(error, {container: container});
+            } else {
+                window.MkFeedback.show((error && error.message) || fallbackMessage || 'Something went wrong. Please try again.', {container: container});
+            }
+            return;
+        }
+        var text = (error && error.message) || fallbackMessage || 'Something went wrong. Please try again.';
+        if (container) {
+            container.textContent = text;
+        } else {
+            console.error(text);
+        }
     }
 
     // ─── Review decisions ─────────────────────────────────────────────
@@ -135,14 +171,14 @@
         if (acceptBtn) {
             acceptBtn.addEventListener('click', function () {
                 guardedSubmit(entry, 'ACCEPTED').catch(function (e) {
-                    alert(e.message);
+                    reportError(e, entryFeedback(entry));
                 });
             });
         }
         if (rejectBtn) {
             rejectBtn.addEventListener('click', function () {
                 guardedSubmit(entry, 'REJECTED').catch(function (e) {
-                    alert(e.message);
+                    reportError(e, entryFeedback(entry));
                 });
             });
         }
@@ -154,13 +190,13 @@
         if (amendSave && amendInput) {
             amendSave.addEventListener('click', function () {
                 if (!amendInput.value.trim()) {
-                    alert('Enter the amended text before saving.');
+                    reportError({message: 'Enter the amended text before saving.'}, entryFeedback(entry));
                     return;
                 }
                 guardedSubmit(entry, 'AMENDED', amendInput.value.trim()).then(function () {
                     amendForm.classList.add('d-none');
                 }).catch(function (e) {
-                    alert(e.message);
+                    reportError(e, entryFeedback(entry));
                 });
             });
         }
@@ -261,7 +297,7 @@
                                     return res.json();
                                 })
                                 .then(renderMedicationReport)
-                                .catch(function () { alert('Could not remove medicine.'); });
+                                .catch(function (e) { reportError(e, null, 'Could not remove medicine. Please try again.'); });
                         });
                         btnGroup.appendChild(supBtn);
                     } else {
@@ -277,7 +313,7 @@
                                     return res.json();
                                 })
                                 .then(renderMedicationReport)
-                                .catch(function () { alert('Could not exclude medicine.'); });
+                                .catch(function (e) { reportError(e, null, 'Could not exclude medicine. Please try again.'); });
                         });
                         btnGroup.appendChild(exclBtn);
                     }
@@ -353,7 +389,7 @@
             }).then(function (report) {
                 renderMedicationReport(report);
                 addMedForm.reset();
-            }).catch(function (err) { alert(err.message || 'Could not add medicine.'); });
+            }).catch(function (err) { reportError(err, null, 'Could not add medicine. Please try again.'); });
         });
     }
 
@@ -714,6 +750,9 @@
         if (data.extractionProvider) {
             extraction.body.appendChild(descriptionRow('Provider', data.extractionProvider));
         }
+        if (data.sourceLanguage) {
+            extraction.body.appendChild(descriptionRow('Language', data.sourceLanguage));
+        }
         extraction.body.appendChild(descriptionRow('Pages', data.pageCount > 0 ? data.pageCount : 'Not available'));
         if (data.extractionErrorMessage) {
             extraction.body.appendChild(plainTextDiv(data.extractionErrorMessage));
@@ -842,8 +881,8 @@
                 .then(function () {
                     new bootstrap.Modal(document.getElementById('findingsModal')).show();
                 })
-                .catch(function () {
-                    alert('Could not load structured findings for this document.');
+                .catch(function (e) {
+                    reportError(e, null, 'Could not load structured findings for this document. Please try again.');
                 })
                 .finally(function () {
                     btn.disabled = false;
@@ -865,8 +904,8 @@
                     return response.json();
                 })
                 .then(showExtractedText)
-                .catch(function () {
-                    alert('Could not load extracted text for this document.');
+                .catch(function (e) {
+                    reportError(e, null, 'Could not load extracted text for this document. Please try again.');
                 })
                 .finally(function () {
                     btn.disabled = false;
@@ -890,7 +929,7 @@
                     window.location.reload();
                 })
                 .catch(function (error) {
-                    alert(error.message || 'Extraction failed. Please try again.');
+                    reportError(error, null, 'Extraction failed. Please try again.');
                     btn.disabled = false;
                     btn.textContent = original;
                 });
@@ -913,8 +952,8 @@
                 .then(function () {
                     new bootstrap.Modal(document.getElementById('documentDetailModal')).show();
                 })
-                .catch(function () {
-                    alert('Could not load document details for this document.');
+                .catch(function (e) {
+                    reportError(e, null, 'Could not load document details for this document. Please try again.');
                 })
                 .finally(function () {
                     btn.disabled = false;
@@ -956,8 +995,8 @@
                     }
                     window.location.href = '/physician/home';
                 })
-                .catch(function () {
-                    alert('Could not release this case back to the queue.');
+                .catch(function (e) {
+                    reportError(e, null, 'Could not release this case back to the queue. Please try again.');
                 });
         });
     }

@@ -15,20 +15,20 @@ public class SecurityPolicyProperties {
     /** Minutes an account stays locked after exceeding the failed-attempt cap. */
     private long lockoutDurationMinutes = 15;
 
-    /** Minimum password length. */
-    private int minPasswordLength = 10;
+    /** Minimum password length — the only mandatory password rule. */
+    private int minPasswordLength = 6;
 
     /** Minimum password length for admin-provisioned temporary passwords. */
     private int minTemporaryPasswordLength = 12;
 
-    /** Passwords must contain at least one uppercase character. */
-    private boolean requireUppercase = true;
+    /** Passwords must contain at least one uppercase character (optional hardening flag). */
+    private boolean requireUppercase = false;
 
-    /** Passwords must contain at least one digit. */
-    private boolean requireDigit = true;
+    /** Passwords must contain at least one digit (optional hardening flag). */
+    private boolean requireDigit = false;
 
-    /** Passwords must contain at least one non-alphanumeric character. */
-    private boolean requireSpecial = true;
+    /** Passwords must contain at least one non-alphanumeric character (optional hardening flag). */
+    private boolean requireSpecial = false;
 
     public int getMaxFailedLoginAttempts() { return maxFailedLoginAttempts; }
     public void setMaxFailedLoginAttempts(int maxFailedLoginAttempts) { this.maxFailedLoginAttempts = maxFailedLoginAttempts; }

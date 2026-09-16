@@ -17,11 +17,23 @@
             'X-Requested-With': 'XMLHttpRequest'
         };
         headers[csrfHeaderName()] = csrfToken();
-        return fetch(url, {
+        return MkFetch(url, {
             method: 'POST',
             headers: headers,
             body: body === undefined ? undefined : JSON.stringify(body)
         });
+    }
+
+    function reportError(error, fallback) {
+        if (window.MkFeedback) {
+            if (error && error.kind) {
+                window.MkFeedback.handle(error);
+            } else {
+                window.MkFeedback.show(fallback || (error && error.message) || window.MkFeedback.messages.server);
+            }
+            return;
+        }
+        console.error(fallback || (error && error.message) || 'Request failed.');
     }
 
     function el(id) {
@@ -60,7 +72,7 @@
         postJson('/patient/history/adaptive/start')
             .then(function (r) { return r.json(); })
             .then(showQuestion)
-            .catch(function () { alert('Sorry, I could not start the conversation. Please refresh the page.'); });
+            .catch(function (error) { reportError(error, 'Sorry, I could not start the conversation. Please refresh the page.'); });
     }
 
     function answer() {
@@ -82,9 +94,9 @@
                     showQuestion(view);
                 }
             })
-            .catch(function () {
+            .catch(function (error) {
                 submitBtn.disabled = false;
-                alert('Sorry, your answer could not be saved. Please try again.');
+                reportError(error, 'Sorry, your answer could not be saved. Please try again.');
             });
     }
 

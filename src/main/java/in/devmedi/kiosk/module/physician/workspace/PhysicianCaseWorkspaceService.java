@@ -22,6 +22,8 @@ import in.devmedi.kiosk.module.physician.repository.CompletedCaseAnswerRepositor
 import in.devmedi.kiosk.module.physician.repository.CompletedCaseRepository;
 import in.devmedi.kiosk.module.physician.review.PhysicianReviewEntry;
 import in.devmedi.kiosk.module.physician.review.PhysicianReviewEntryRepository;
+import in.devmedi.kiosk.module.patient.correction.PatientAnswerCorrection;
+import in.devmedi.kiosk.module.patient.correction.PatientAnswerCorrectionRepository;
 import in.devmedi.kiosk.module.physician.service.PhysicianTimelineService;
 import in.devmedi.kiosk.module.voice.language.LanguageService;
 import in.devmedi.kiosk.module.voice.language.SupportedLanguage;
@@ -60,6 +62,7 @@ public class PhysicianCaseWorkspaceService {
     private final PhysicianTimelineService timelineService;
     private final HisIntegrationBoundary hisIntegrationBoundary;
     private final CaseAssignmentRepository assignmentRepository;
+    private final PatientAnswerCorrectionRepository correctionRepository;
 
     public PhysicianCaseWorkspaceService(CompletedCaseRepository completedCaseRepository,
                                          CompletedCaseAnswerRepository answerRepository,
@@ -71,7 +74,8 @@ public class PhysicianCaseWorkspaceService {
                                          LanguageService languageService,
                                          PhysicianTimelineService timelineService,
                                          HisIntegrationBoundary hisIntegrationBoundary,
-                                         CaseAssignmentRepository assignmentRepository) {
+                                         CaseAssignmentRepository assignmentRepository,
+                                         PatientAnswerCorrectionRepository correctionRepository) {
         this.completedCaseRepository = completedCaseRepository;
         this.answerRepository = answerRepository;
         this.reviewRepository = reviewRepository;
@@ -83,6 +87,7 @@ public class PhysicianCaseWorkspaceService {
         this.timelineService = timelineService;
         this.hisIntegrationBoundary = hisIntegrationBoundary;
         this.assignmentRepository = assignmentRepository;
+        this.correctionRepository = correctionRepository;
     }
 
     // ─── Dashboard ────────────────────────────────────────────────────
@@ -158,11 +163,18 @@ public class PhysicianCaseWorkspaceService {
                 .collect(java.util.stream.Collectors.toMap(
                         PhysicianReviewEntry::getAnswerOrder, r -> r));
 
+        // Patient corrections are read-only provenance here: they annotate the
+        // original evidence, they never replace it.
+        Map<Integer, PatientAnswerCorrection> correctionMap = correctionRepository
+                .findByCompletedCase_CaseIdOrderByAnswerOrder(caseId).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        PatientAnswerCorrection::getAnswerOrder, c -> c));
+
         WorkspaceIdentity identity = caseEntity.getUser() != null
                 ? WorkspaceIdentity.linked(caseEntity.getUser().getUsername())
                 : WorkspaceIdentity.unlinked();
 
-        List<WorkspaceSection> sections = buildSections(answers, reviewMap);
+        List<WorkspaceSection> sections = buildSections(answers, reviewMap, correctionMap);
 
         int totalFlags = 0;
         RedFlagSeverity maxSeverity = RedFlagSeverity.NONE;
@@ -191,6 +203,11 @@ public class PhysicianCaseWorkspaceService {
                 .findByCompletedCase_CaseIdAndStatus(caseId, AssignmentStatus.ACTIVE).stream()
                 .findFirst();
 
+        Map<Integer, Integer> correctionCounts = new HashMap<>();
+        for (Map.Entry<Integer, PatientAnswerCorrection> e : correctionMap.entrySet()) {
+            correctionCounts.put(e.getKey(), 1);
+        }
+
         return Optional.of(new WorkspaceView(
                 caseId,
                 caseEntity.getCreatedAt(),
@@ -208,13 +225,16 @@ public class PhysicianCaseWorkspaceService {
                 activeAssignment.isPresent(),
                 activeAssignment.map(a -> a.getPhysician().getUsername()).orElse(""),
                 activeAssignment.isPresent()
-                        && activeAssignment.get().getPhysician().getId().equals(viewerPhysicianId)));
+                        && activeAssignment.get().getPhysician().getId().equals(viewerPhysicianId),
+                correctionCounts,
+                correctionMap.size()));
     }
 
     // ─── Internals ────────────────────────────────────────────────────
 
     private List<WorkspaceSection> buildSections(List<CompletedCaseAnswerEntity> answers,
-                                                  Map<Integer, PhysicianReviewEntry> reviewMap) {
+                                                  Map<Integer, PhysicianReviewEntry> reviewMap,
+                                                  Map<Integer, PatientAnswerCorrection> correctionMap) {
         Map<String, List<AnswerEntryView>> grouped = new LinkedHashMap<>();
         for (CompletedCaseAnswerEntity a : answers) {
             ClinicalAnswer ca = a.toClinicalAnswer();
@@ -227,6 +247,8 @@ public class PhysicianCaseWorkspaceService {
             ReviewView review = reviewMap.containsKey(a.getAnswerOrder())
                     ? reviewView(reviewMap.get(a.getAnswerOrder()))
                     : ReviewView.none();
+
+            AnswerEntryView.CorrectionView correction = correctionView(correctionMap.get(a.getAnswerOrder()), a);
 
             AnswerEntryView entry = new AnswerEntryView(
                     a.getAnswerOrder(),
@@ -245,7 +267,8 @@ public class PhysicianCaseWorkspaceService {
                     flags.stream()
                             .map(f -> new DerivedFlagView(f.id(), f.severity().name(), f.title(), f.message()))
                             .toList(),
-                    review);
+                    review,
+                    correction);
 
             String label = sectionLabel(a.getSection());
             grouped.computeIfAbsent(label, k -> new ArrayList<>()).add(entry);
@@ -255,6 +278,32 @@ public class PhysicianCaseWorkspaceService {
             sections.add(new WorkspaceSection(e.getKey(), e.getKey(), e.getValue()));
         }
         return sections;
+    }
+
+    /**
+     * Builds the correction provenance view for one answer, or an absent view.
+     * A correction whose snapshot no longer matches the persisted answer is
+     * deliberately NOT shown as a correction of this answer: the original
+     * evidence is authoritative and the mismatch is surfaced as an integrity
+     * note instead of silently presenting stale correction data.
+     */
+    private AnswerEntryView.CorrectionView correctionView(PatientAnswerCorrection correction,
+                                                          CompletedCaseAnswerEntity answer) {
+        if (correction == null) {
+            return new AnswerEntryView.CorrectionView(false, null, null, null, null, null, null);
+        }
+        boolean snapshotMatches = correction.getOriginalAnswer() != null
+                && correction.getOriginalAnswer().equals(answer.getAnswer());
+        if (!snapshotMatches) {
+            return new AnswerEntryView.CorrectionView(false, null, null, null, null, null, null);
+        }
+        return new AnswerEntryView.CorrectionView(true,
+                correction.getOriginalAnswer(),
+                correction.getCorrectedAnswer(),
+                correction.getReason(),
+                correction.getCorrectedBy(),
+                correction.getCorrectedAt(),
+                correction.getStatus().name());
     }
 
     private ReviewView reviewView(PhysicianReviewEntry entry) {

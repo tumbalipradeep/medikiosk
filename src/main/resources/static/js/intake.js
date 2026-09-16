@@ -141,11 +141,26 @@
                 'X-Requested-With': 'XMLHttpRequest'
             };
             headers[csrfHeaderName()] = csrfToken();
-            return fetch(url, {
+            return MkFetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: body === undefined ? undefined : JSON.stringify(body)
             });
+        }
+
+        // Mid-intake expiry must be visible, not silent: an assistant message
+        // explains what happened and offers the recovery path. No answer text
+        // is kept or replayed; the server remains the source of truth.
+        function announceSessionExpired() {
+            var message = (window.MkFeedback && window.MkFeedback.messages.session)
+                || 'Your session has expired. Please sign in again to continue your intake.';
+            appendMessage('assistant', message);
+            conversationActive = false;
+            sendButton.disabled = true;
+            input.disabled = true;
+            if (window.MkFeedback) {
+                window.MkFeedback.showSessionBar();
+            }
         }
 
         function bcp47For(value) {
@@ -359,7 +374,7 @@
             if (!container) {
                 return;
             }
-            fetch('/patient/cases/' + encodeURIComponent(caseId) + '/summary', {
+            return MkFetch('/patient/cases/' + encodeURIComponent(caseId) + '/summary', {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': csrfToken()
@@ -395,6 +410,10 @@
                         noFlagBox.classList.remove('d-none');
                     }
                 }
+                var correctionsByOrder = {};
+                (summary.corrections || []).forEach(function (c) {
+                    correctionsByOrder[c.answerOrder] = c;
+                });
                 summary.answers.forEach(function (item) {
                     var wrapper = document.createElement('div');
                     wrapper.className = 'review-item';
@@ -406,11 +425,221 @@
                     a.textContent = item.answer || '(no answer given)';
                     wrapper.appendChild(q);
                     wrapper.appendChild(a);
+                    if (correctionsByOrder[item.answerOrder]) {
+                        wrapper.appendChild(correctionBadge(correctionsByOrder[item.answerOrder]));
+                    } else {
+                        wrapper.appendChild(correctButton(item, currentCaseId, container, summary));
+                    }
                     container.appendChild(wrapper);
                 });
             }).catch(function () {
-                container.innerHTML = '<div class="text-danger py-1">Could not load your review.</div>';
+                if (window.MkFeedback) {
+                    window.MkFeedback.show(window.MkFeedback.messages.server, {container: container});
+                } else {
+                    container.innerHTML = '<div class="text-danger py-1">Could not load your review.</div>';
+                }
             });
+        }
+
+        // ─── Patient correction loop ─────────────────────────────────────
+        // Additive evidence only: the server keeps the original answer and the
+        // correction side by side; nothing here rewrites what was captured.
+
+        function correctButton(item, caseId, container, summary) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-outline-secondary mt-1 mk-correction-btn';
+            btn.setAttribute('aria-label', 'Correct your answer to: ' + (item.displayedText || ''));
+            btn.textContent = "This isn't right";
+            btn.addEventListener('click', function () {
+                openCorrectionDialog(item, caseId, container, summary, btn);
+            });
+            return btn;
+        }
+
+        function openCorrectionDialog(item, caseId, container, summary, trigger) {
+            var overlay = document.createElement('div');
+            overlay.className = 'mk-correction-overlay';
+            var dialog = document.createElement('div');
+            dialog.className = 'mk-correction-dialog';
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-labelledby', 'mkCorrectionTitle');
+
+            var title = document.createElement('h3');
+            title.id = 'mkCorrectionTitle';
+            title.className = 'h6 fw-bold mb-2';
+            title.textContent = 'Correct this answer';
+
+            var q = document.createElement('p');
+            q.className = 'small text-muted mb-2';
+            q.textContent = item.displayedText || '';
+
+            var originalLabel = document.createElement('div');
+            originalLabel.className = 'small fw-semibold mb-1';
+            originalLabel.textContent = 'What was recorded:';
+            var originalValue = document.createElement('div');
+            originalValue.className = 'mk-correction-original';
+            originalValue.textContent = item.answer || '(no answer given)';
+
+            var formLabel = document.createElement('label');
+            formLabel.className = 'form-label small fw-semibold mt-3 mb-1';
+            formLabel.setAttribute('for', 'mkCorrectionInput');
+            formLabel.textContent = 'What it should say:';
+            var input = document.createElement('textarea');
+            input.id = 'mkCorrectionInput';
+            input.className = 'form-control form-control-sm';
+            input.rows = 2;
+            input.maxLength = 4000;
+
+            var reasonLabel = document.createElement('label');
+            reasonLabel.className = 'form-label small fw-semibold mt-2 mb-1';
+            reasonLabel.setAttribute('for', 'mkCorrectionReason');
+            reasonLabel.textContent = 'Why (optional):';
+            var reason = document.createElement('input');
+            reason.id = 'mkCorrectionReason';
+            reason.type = 'text';
+            reason.className = 'form-control form-control-sm';
+            reason.maxLength = 1000;
+
+            var errBox = document.createElement('div');
+            errBox.className = 'mk-feedback mk-feedback--error mt-2 d-none';
+            errBox.setAttribute('aria-live', 'assertive');
+
+            var btnRow = document.createElement('div');
+            btnRow.className = 'd-flex gap-2 mt-3';
+            var save = document.createElement('button');
+            save.type = 'button';
+            save.className = 'btn btn-primary btn-sm flex-grow-1';
+            save.textContent = 'Submit correction';
+            var cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.className = 'btn btn-outline-secondary btn-sm';
+            cancel.textContent = 'Cancel';
+            btnRow.appendChild(save);
+            btnRow.appendChild(cancel);
+
+            dialog.appendChild(title);
+            dialog.appendChild(q);
+            dialog.appendChild(originalLabel);
+            dialog.appendChild(originalValue);
+            dialog.appendChild(formLabel);
+            dialog.appendChild(input);
+            dialog.appendChild(reasonLabel);
+            dialog.appendChild(reason);
+            dialog.appendChild(errBox);
+            dialog.appendChild(btnRow);
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            var previouslyFocused = document.activeElement;
+            input.focus();
+
+            function close() {
+                document.body.removeChild(overlay);
+                if (previouslyFocused && previouslyFocused.focus) {
+                    previouslyFocused.focus();
+                }
+            }
+            cancel.addEventListener('click', close);
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) {
+                    close();
+                }
+            });
+            document.addEventListener('keydown', function esc(e) {
+                if (e.key === 'Escape') {
+                    close();
+                    document.removeEventListener('keydown', esc);
+                }
+            });
+
+            save.addEventListener('click', function () {
+                var value = input.value.trim();
+                if (!value) {
+                    errBox.textContent = 'Please enter what your answer should say.';
+                    errBox.classList.remove('d-none');
+                    input.focus();
+                    return;
+                }
+                if (value === (item.answer || '')) {
+                    errBox.textContent = 'That is the same as what was recorded. Enter a different answer.';
+                    errBox.classList.remove('d-none');
+                    input.focus();
+                    return;
+                }
+                errBox.classList.add('d-none');
+                save.disabled = true;
+                var headers = {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                };
+                headers[csrfHeaderName()] = csrfToken();
+                MkFetch('/patient/cases/' + encodeURIComponent(caseId) + '/corrections', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        answerOrder: item.answerOrder,
+                        correctedAnswer: value,
+                        reason: reason.value.trim() || null
+                    })
+                }).then(function (response) {
+                    if (response.status === 400 || response.status === 404 || response.status === 409) {
+                        return response.json().catch(function () {
+                            return {};
+                        }).then(function (body) {
+                            throw new Error(body.message || 'The correction could not be saved.');
+                        });
+                    }
+                    if (!response.ok) {
+                        throw new Error('server');
+                    }
+                    return response.json();
+                }).then(function () {
+                    close();
+                    // Re-render the review list so original vs corrected stays truthful.
+                    loadReviewSummary(caseId).catch(function () { /* already surfaced */ });
+                }).catch(function (error) {
+                    save.disabled = false;
+                    if (window.MkFeedback && window.MkFeedback.isSessionError(error)) {
+                        // Prominent recovery bar; the dialog stays open so the
+                        // patient can sign in again and resubmit.
+                        window.MkFeedback.showSessionBar();
+                        errBox.textContent = window.MkFeedback.messages.session;
+                    } else if (error && error.kind === 'network') {
+                        errBox.textContent = window.MkFeedback ? window.MkFeedback.messages.network : 'You appear to be offline. Please check the connection and try again.';
+                    } else {
+                        errBox.textContent = error && error.message && error.message !== 'server'
+                            ? error.message
+                            : (window.MkFeedback ? window.MkFeedback.messages.server : 'Could not save the correction. Please try again.');
+                    }
+                    errBox.classList.remove('d-none');
+                    input.focus();
+                });
+            });
+        }
+
+        function correctionBadge(c) {
+            var box = document.createElement('div');
+            box.className = 'mk-correction-badge mt-1';
+            var label = document.createElement('span');
+            label.className = 'badge text-bg-info';
+            label.textContent = 'Corrected by you';
+            box.appendChild(label);
+            var detail = document.createElement('div');
+            detail.className = 'small mt-1';
+            var now = document.createElement('div');
+            now.innerHTML = '<strong>Now says:</strong> ';
+            now.appendChild(document.createTextNode(c.correctedAnswer));
+            detail.appendChild(now);
+            if (c.reason) {
+                var why = document.createElement('div');
+                why.className = 'text-muted';
+                why.textContent = 'Reason: ' + c.reason;
+                detail.appendChild(why);
+            }
+            box.appendChild(detail);
+            return box;
         }
 
         function startConversation() {
@@ -431,8 +660,12 @@
                         completeConversation();
                     }
                 })
-                .catch(function () {
-                    appendMessage('assistant', LANGUAGES[currentLang].startFailed);
+                .catch(function (error) {
+                    if (error && error.kind === 'session') {
+                        announceSessionExpired();
+                    } else {
+                        appendMessage('assistant', LANGUAGES[currentLang].startFailed);
+                    }
                 });
         }
 
@@ -466,8 +699,12 @@
                 .then(function (data) {
                     handleStep(data);
                 })
-                .catch(function () {
-                    appendMessage('assistant', 'Sorry, something went wrong. Please try again.');
+                .catch(function (error) {
+                    if (error && error.kind === 'session') {
+                        announceSessionExpired();
+                    } else {
+                        appendMessage('assistant', 'Sorry, something went wrong. Please try again.');
+                    }
                 })
                 .finally(function () {
                     inFlight = false;

@@ -2,11 +2,15 @@ package in.devmedi.kiosk.home;
 
 import in.devmedi.kiosk.module.admin.config.SystemSetting;
 import in.devmedi.kiosk.module.admin.config.SystemSettingRepository;
+import in.devmedi.kiosk.module.ai.provider.AiFailoverService;
+import in.devmedi.kiosk.module.ai.provider.AiFailoverService.AiProviderEnabled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+
+import java.util.List;
 
 /**
  * Public web surface. The site's informational pages ({@code /about},
@@ -19,13 +23,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class HomeController {
 
     private final SystemSettingRepository settingRepository;
+    private final AiFailoverService aiFailoverService;
 
-    public HomeController(SystemSettingRepository settingRepository) {
+    public HomeController(SystemSettingRepository settingRepository,
+                          AiFailoverService aiFailoverService) {
         this.settingRepository = settingRepository;
+        this.aiFailoverService = aiFailoverService;
     }
 
     @GetMapping("/")
-    public String home(Authentication authentication) {
+    public String home(Authentication authentication, Model model) {
         if (authentication != null && authentication.isAuthenticated()) {
             for (GrantedAuthority authority : authentication.getAuthorities()) {
                 switch (authority.getAuthority()) {
@@ -43,6 +50,13 @@ public class HomeController {
                 }
             }
         }
+        // The landing AI badge is derived from the same authoritative source the
+        // runtime uses to decide whether any conversational-AI provider will be
+        // attempted (failover order + API-key presence). No hard-coded claim.
+        List<AiProviderEnabled> aiProviders = aiFailoverService.providerStatuses();
+        model.addAttribute("aiProviders", aiProviders);
+        model.addAttribute("aiConfigured",
+                aiProviders.stream().anyMatch(AiProviderEnabled::enabled));
         return "home";
     }
 

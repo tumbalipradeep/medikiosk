@@ -19,6 +19,7 @@ import java.time.Instant;
  * @param extractionBadgeClass   Bootstrap badge class for the extraction status
  * @param extractionMethod       proven extraction method, or {@code null}
  * @param extractionProvider     proven extraction provider, or {@code null}
+ * @param sourceLanguage         language of the extracted source text, or {@code null} when the extraction pre-dates language provenance (V24) or none was recorded
  * @param hasFindings            whether structured findings are available
  * @param labCount               number of decoded lab results
  * @param abnormalLabCount       number of lab results with LOW or HIGH status
@@ -35,6 +36,7 @@ public record DocumentWorkspaceItem(String documentId,
                                     String extractionBadgeClass,
                                     ExtractionMethod extractionMethod,
                                     String extractionProvider,
+                                    String sourceLanguage,
                                     boolean hasFindings,
                                     int labCount,
                                     int abnormalLabCount,

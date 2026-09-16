@@ -34,6 +34,7 @@ import java.util.List;
  * @param extractedAt             extraction timestamp
  * @param extractionMethod        how text was extracted (PDF text layer vs OCR), or {@code null}
  * @param extractionProvider      engine that produced the extraction, or {@code null}
+ * @param sourceLanguage          language of the extracted source text, or {@code null} when the extraction pre-dates language provenance (V24) or none was recorded
  * @param pageCount               page count
  * @param pages                   page-level extracted text
  * @param patient                 decoded patient identifiers, or {@code null}
@@ -57,6 +58,7 @@ public record DocumentDetailResponse(String documentId,
                                      Instant extractedAt,
                                      ExtractionMethod extractionMethod,
                                      String extractionProvider,
+                                     String sourceLanguage,
                                      int pageCount,
                                      List<ExtractionResult.PageText> pages,
                                      PatientIdentifiers patient,

@@ -216,8 +216,10 @@ public class AdminConsoleController {
     }
 
     @PostMapping("/admin/settings/delete")
-    public String deleteSetting(@RequestParam String key, RedirectAttributes flash) {
-        console.deleteSetting(key);
+    public String deleteSetting(@RequestParam String key,
+                                @AuthenticationPrincipal ApplicationUserDetails actor,
+                                RedirectAttributes flash) {
+        console.deleteSetting(key, actor == null ? null : actor.getId());
         flash.addFlashAttribute("success", "Setting removed: " + key);
         return "redirect:/admin/settings";
     }

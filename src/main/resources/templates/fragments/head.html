@@ -10,19 +10,6 @@
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous"
           referrerpolicy="no-referrer">
     <link rel="stylesheet" th:href="@{/css/app.css}">
-    <script>
-        (function () {
-            'use strict';
-            try {
-                var prefs = JSON.parse(localStorage.getItem('medikiosk.prefs') || '{}');
-                var doc = document.documentElement;
-                if (prefs.theme) doc.setAttribute('data-bs-theme', prefs.theme);
-                if (prefs.motion) doc.setAttribute('data-mk-motion', prefs.motion);
-                if (prefs.textSize) doc.setAttribute('data-mk-textsize', prefs.textSize);
-            } catch (e) {
-                /* preferences are cosmetic; never block rendering */
-            }
-        })();
-    </script>
+    <th:block th:replace="~{fragments/prepaint :: prepaint}"></th:block>
 </head>
 </html>

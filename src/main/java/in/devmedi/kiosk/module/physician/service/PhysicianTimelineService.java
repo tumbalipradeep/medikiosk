@@ -172,6 +172,7 @@ public class PhysicianTimelineService {
                     summary.badgeClass(),
                     extraction != null ? extraction.getExtractionMethod() : null,
                     extraction != null ? extraction.getProviderName() : null,
+                    extraction != null ? extraction.getSourceLanguage() : null,
                     hasFindings,
                     labCount,
                     abnormalLabCount,
@@ -256,6 +257,8 @@ public class PhysicianTimelineService {
 
         ExtractionMethod extractionMethod = extractionOpt.map(ClinicalDocumentExtraction::getExtractionMethod).orElse(null);
         String extractionProvider = extractionOpt.map(ClinicalDocumentExtraction::getProviderName).orElse(null);
+        // Null-safe for pre-V24 rows: sourceLanguage is simply absent for them.
+        String sourceLanguage = extractionOpt.map(ClinicalDocumentExtraction::getSourceLanguage).orElse(null);
 
         return new DocumentDetailResponse(
                 documentId,
@@ -271,6 +274,7 @@ public class PhysicianTimelineService {
                 summary.extractedAt(),
                 extractionMethod,
                 extractionProvider,
+                sourceLanguage,
                 summary.pageCount(),
                 pages,
                 patient,

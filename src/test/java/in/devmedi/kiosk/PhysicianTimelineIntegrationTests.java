@@ -223,6 +223,10 @@ class PhysicianTimelineIntegrationTests {
         assertThat(itemA.extractionStatus().name()).isEqualTo("EXTRACTED");
         assertThat(itemA.extractionMethod().name()).isEqualTo("PDF_TEXT");
         assertThat(itemA.extractionProvider()).isEqualTo("pdfbox");
+        // Language provenance is surfaced when a provider records it; the
+        // local pipeline does not detect language, so the honest value is
+        // null — never a fabricated language label.
+        assertThat(itemA.sourceLanguage()).isNull();
         assertThat(itemA.hasFindings()).isTrue();
         assertThat(itemA.labCount()).isEqualTo(2);
         assertThat(itemA.abnormalLabCount()).isZero();

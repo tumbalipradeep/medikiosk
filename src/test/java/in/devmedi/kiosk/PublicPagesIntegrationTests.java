@@ -1,5 +1,6 @@
 package in.devmedi.kiosk;
 
+import in.devmedi.kiosk.module.ai.provider.AiFailoverService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -7,6 +8,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -26,6 +29,9 @@ class PublicPagesIntegrationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private AiFailoverService aiFailoverService;
 
     @Test
     void landingPageRendersTheFullProductStory() throws Exception {
@@ -95,6 +101,61 @@ class PublicPagesIntegrationTests {
         MockHttpSession session = login("patient", "patient123");
         mockMvc.perform(get("/").session(session))
                 .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    void landingAiBadgeIsDerivedFromTheBoundProvidersNotHardCoded() throws Exception {
+        boolean anyEnabled = aiFailoverService.hasEnabledProviders();
+        String expectedBadge = anyEnabled ? "Configured" : "Depending on key";
+
+        String body = mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "Conversational AI (credential-gated, fallback offline)")))
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(body).contains(expectedBadge);
+    }
+
+    @Test
+    void landingApplicationStatusBadgeCarriesTheIdTheStatusScriptTargets() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"appStatusLive\"")))
+                .andExpect(content().string(containsString("Application Status:")));
+
+        // JS contract: the status script targets the id that actually renders.
+        String js = classpathAppJs();
+        org.assertj.core.api.Assertions.assertThat(js)
+                .contains("getElementById('appStatusLive')")
+                .doesNotContain("getElementById('appStatus')");
+    }
+
+    @Test
+    void statusScriptFetchesHealthFromTheApplicationRoot() throws Exception {
+        // G2 contract: the health fetch is absolute, so it cannot break if the
+        // script is ever served from a nested page.
+        String js = classpathAppJs();
+        org.assertj.core.api.Assertions.assertThat(js)
+                .contains("fetch('/actuator/health'")
+                .doesNotContain("fetch('actuator/health'");
+    }
+
+    @Test
+    void aiCapabilityEndpointMatchesTheLandingDerivation() throws Exception {
+        // The anonymous capability API and the landing badge must agree.
+        boolean anyEnabled = aiFailoverService.hasEnabledProviders();
+        mockMvc.perform(get("/api/capabilities/ai"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .jsonPath("$.anyProviderEnabled").value(anyEnabled));
+    }
+
+    private String classpathAppJs() throws Exception {
+        try (var in = getClass().getClassLoader().getResourceAsStream("static/js/app.js")) {
+            org.assertj.core.api.Assertions.assertThat(in).isNotNull();
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private MockHttpSession login(String username, String password) throws Exception {

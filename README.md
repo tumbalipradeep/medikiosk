@@ -131,6 +131,38 @@ public site maps to a real implemented endpoint, OCR/HWR remain
 failures; bounded HTTP/HTML verification PASS on a freshly booted in-memory
 instance.
 
+**M9 — RD2: Product deepening and interaction hardening (complete).** RD2
+deepens truth and interaction without changing the architecture. Truth: the
+landing Application Status badge is actually wired (`appStatusLive`) and
+reads `/actuator/health`; the AI badge derives from the authoritative
+`AiFailoverService` state via `GET /api/capabilities/ai`; voice joins
+OCR/HWR with a truthful `GET /api/capabilities/voice`; source-language
+provenance is plumbed end-to-end and stays honestly null until a real
+provider records a language. Patients can now correct captured intake
+answers as **additive evidence** (`V26__patient_answer_corrections.sql`):
+the original answer is immutable, corrections carry actor + timestamp +
+reason + a server-side snapshot, every correction is audited
+(`PATIENT_CORRECTION`), and the physician workspace shows original and
+correction side by side pending an explicit physician review decision.
+Display preferences (theme / motion / text size) persist server-side for
+authenticated users (`V25__user_display_preferences.sql`) while anonymous
+users stay browser-local, seeded through a single flash-free pre-paint
+fragment. A shared failure-first feedback layer (`MkFeedback`/`MkFetch`)
+replaced all `alert()` usage in professional workflows with `aria-live`
+inline errors and a session-expiry recovery bar. The motion token
+architecture gained restrained physical/spatial interaction (button press
+compression and spring release, card lift, origin-aware dialogs, bubble
+entrances) with `prefers-reduced-motion` and Dynamic/Standard/Reduced modes
+honored, transform/opacity only, and no `transition: all`. The password
+policy is now minimum 6 characters only, applied consistently across
+registration, change and provisioning without weakening hashing, lockout,
+CSRF or role boundaries. The admin control center gained a filterable,
+paginated audit trail (`/admin/audit`) and `SETTINGS_CHANGE` auditing of
+every runtime setting update/delete (keys and actors only, never values).
+No external API was integrated; OCR/HWR remain `NOT_IMPLEMENTED`. See
+`docs/RD2-audit.md`. Full clean regression: 91 test classes / 780 tests,
+zero failures, zero errors, zero skipped.
+
 MediKiosk currently includes:
 
 - Authentication/security

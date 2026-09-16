@@ -179,6 +179,33 @@ class AiFailoverServiceTests {
         verify(gemini, times(1)).complete(any());
     }
 
+    @Test
+    void providerStatusesMirrorEnabledStateInFailoverOrder() {
+        when(groq.isEnabled()).thenReturn(true);
+        when(gemini.isEnabled()).thenReturn(false);
+        when(openRouter.isEnabled()).thenReturn(false);
+
+        List<AiFailoverService.AiProviderEnabled> statuses = service().providerStatuses();
+
+        assertThat(statuses).extracting(AiFailoverService.AiProviderEnabled::name)
+                .containsExactly("groq", "gemini", "openrouter");
+        assertThat(statuses).extracting(AiFailoverService.AiProviderEnabled::enabled)
+                .containsExactly(true, false, false);
+    }
+
+    @Test
+    void providerStatusesReportAllDisabledWhenNoKeysArePresent() {
+        when(groq.isEnabled()).thenReturn(false);
+        when(gemini.isEnabled()).thenReturn(false);
+        when(openRouter.isEnabled()).thenReturn(false);
+
+        AiFailoverService failover = service();
+
+        assertThat(failover.providerStatuses())
+                .allSatisfy(status -> assertThat(status.enabled()).isFalse());
+        assertThat(failover.hasEnabledProviders()).isFalse();
+    }
+
     private ClinicalAiResponse response(String provider) {
         return ClinicalAiResponse.of(provider, "model-" + provider, "ok", "en");
     }

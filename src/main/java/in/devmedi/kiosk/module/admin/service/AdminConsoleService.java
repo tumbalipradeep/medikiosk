@@ -4,7 +4,11 @@ import in.devmedi.kiosk.module.admin.config.SystemSetting;
 import in.devmedi.kiosk.module.admin.config.SystemSettingRepository;
 import in.devmedi.kiosk.module.ai.provider.ClinicalAiProvider;
 import in.devmedi.kiosk.module.audit.entity.AuditEvent;
+import in.devmedi.kiosk.module.audit.entity.AuditEventType;
+import in.devmedi.kiosk.module.audit.entity.AuditOutcome;
 import in.devmedi.kiosk.module.audit.repository.AuditEventRepository;
+import in.devmedi.kiosk.module.audit.service.AuditEventCommand;
+import in.devmedi.kiosk.module.audit.service.AuditService;
 import in.devmedi.kiosk.module.auth.entity.Role;
 import in.devmedi.kiosk.module.auth.entity.User;
 import in.devmedi.kiosk.module.auth.repository.UserRepository;
@@ -51,6 +55,8 @@ public class AdminConsoleService {
     private final OcrCapabilityService ocrCapabilityService;
     private final HisIntegrationBoundary hisIntegrationBoundary;
     private final FhirExportTransport fhirExportTransport;
+    private final in.devmedi.kiosk.module.voice.config.VoiceProperties voiceProperties;
+    private final AuditService auditService;
 
     public AdminConsoleService(UserRepository userRepository,
                                PatientProfileRepository patientProfileRepository,
@@ -62,7 +68,9 @@ public class AdminConsoleService {
                                AuditEventRepository auditEventRepository,
                                OcrCapabilityService ocrCapabilityService,
                                HisIntegrationBoundary hisIntegrationBoundary,
-                               FhirExportTransport fhirExportTransport) {
+                               FhirExportTransport fhirExportTransport,
+                               in.devmedi.kiosk.module.voice.config.VoiceProperties voiceProperties,
+                               AuditService auditService) {
         this.userRepository = userRepository;
         this.patientProfileRepository = patientProfileRepository;
         this.physicianProfileRepository = physicianProfileRepository;
@@ -74,6 +82,8 @@ public class AdminConsoleService {
         this.ocrCapabilityService = ocrCapabilityService;
         this.hisIntegrationBoundary = hisIntegrationBoundary;
         this.fhirExportTransport = fhirExportTransport;
+        this.voiceProperties = voiceProperties;
+        this.auditService = auditService;
     }
 
     // ─── Accounts ─────────────────────────────────────────────────────
@@ -246,6 +256,14 @@ public class AdminConsoleService {
         setting.setValue(value);
         setting.setUpdatedBy(admin);
         settingRepository.save(setting);
+        // Settings changes are security-relevant platform mutations: they are
+        // audited with the key and actor (never the value, which may be
+        // operationally sensitive such as a support mailbox). The key rides in
+        // {@code operation} because resource_type is a 32-char column.
+        auditService.record(new AuditEventCommand(
+                AuditEventType.SETTINGS_CHANGE, Instant.now(), admin.getUsername(), "ADMIN",
+                null, "UPDATE " + trimmedKey, "SystemSetting", AuditOutcome.SUCCESS, null,
+                "/admin/settings"));
     }
 
     private void validateSetting(String key, String value) {
@@ -256,8 +274,15 @@ public class AdminConsoleService {
     }
 
     @Transactional
-    public void deleteSetting(String key) {
-        settingRepository.findByKey(key).ifPresent(settingRepository::delete);
+    public void deleteSetting(String key, Long administratorId) {
+        settingRepository.findByKey(key).ifPresent(setting -> {
+            settingRepository.delete(setting);
+            User admin = lifecycle.requireUser(administratorId);
+            auditService.record(new AuditEventCommand(
+                    AuditEventType.SETTINGS_CHANGE, Instant.now(), admin.getUsername(), "ADMIN",
+                    null, "DELETE " + key, "SystemSetting", AuditOutcome.SUCCESS, null,
+                    "/admin/settings"));
+        });
     }
 
     private String supportedLanguageCodes() {
@@ -291,12 +316,22 @@ public class AdminConsoleService {
     public CapabilitySummary capabilitySummary() {
         OcrCapabilityService.OcrCapabilitiesResponse ocr = ocrCapabilityService.ocrCapabilities();
         OcrCapabilityService.HwrCapabilityResponse hwr = ocrCapabilityService.hwrCapability();
+        // Voice truth mirrors the exact predicate VoiceConfig uses to engage a
+        // real provider instead of the UNAVAILABLE fallback.
+        boolean asrLive = voiceProperties.asrUsesBhashini() && voiceProperties.getBhashini().isComplete();
+        boolean ttsLive = voiceProperties.ttsUsesBhashini() && voiceProperties.getBhashini().isComplete();
+        VoiceCapabilityStatus voice = new VoiceCapabilityStatus(
+                asrLive ? voiceProperties.getAsrProvider() : in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_UNAVAILABLE,
+                asrLive,
+                ttsLive ? voiceProperties.getTtsProvider() : in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_UNAVAILABLE,
+                ttsLive);
         return new CapabilitySummary(
                 ocr.overallStatus(),
                 ocr.engines().size(),
                 ocr.configuredProvider(),
                 hwr.status(),
                 hwr.provider(),
+                voice,
                 aiProviders(),
                 hisIntegrationBoundary.isConfigured(),
                 hisIntegrationBoundary.transportLabel(),
@@ -342,11 +377,17 @@ public class AdminConsoleService {
     public record AiProviderStatus(String name, boolean enabled) {
     }
 
+    /** Configuration-level voice (ASR/TTS) capability truth for the console. */
+    public record VoiceCapabilityStatus(String asrProvider, boolean asrAvailable,
+                                        String ttsProvider, boolean ttsAvailable) {
+    }
+
     public record CapabilitySummary(OcrProviderStatus ocrStatus,
                                     int ocrEngineCount,
                                     String ocrProvider,
                                     OcrProviderStatus hwrStatus,
                                     String hwrProvider,
+                                    VoiceCapabilityStatus voiceStatus,
                                     List<AiProviderStatus> aiProviders,
                                     boolean hisConfigured,
                                     String hisTransportLabel,

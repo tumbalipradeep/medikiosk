@@ -14,5 +14,19 @@ public enum AuditEventType {
     FHIR_EXPORT,
 
     /** Physician review decision (accept / amend / reject) against an intake answer. */
-    PHYSICIAN_REVIEW
+    PHYSICIAN_REVIEW,
+
+    /**
+     * Patient submitted a correction against a captured intake answer of their
+     * own case. Corrections are additive evidence: the original answer row is
+     * never modified, and this event records who corrected what, when.
+     */
+    PATIENT_CORRECTION,
+
+    /**
+     * An administrator changed or removed a runtime platform setting through
+     * the control center. Carries the setting key (never the value, which may
+     * be operationally sensitive) so configuration changes stay auditable.
+     */
+    SETTINGS_CHANGE
 }

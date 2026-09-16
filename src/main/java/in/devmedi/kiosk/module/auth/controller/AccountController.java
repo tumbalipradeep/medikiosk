@@ -5,6 +5,8 @@ import in.devmedi.kiosk.module.auth.entity.User;
 import in.devmedi.kiosk.module.auth.security.ApplicationUserDetails;
 import in.devmedi.kiosk.module.auth.security.SecurityPolicyProperties;
 import in.devmedi.kiosk.module.auth.service.AccountLifecycleService;
+import in.devmedi.kiosk.module.auth.preferences.DisplayPreferencesService;
+import in.devmedi.kiosk.module.auth.preferences.DisplayPreferencesValidationException;
 import in.devmedi.kiosk.module.auth.service.AccountValidationException;
 import in.devmedi.kiosk.module.profile.entity.PatientProfile;
 import in.devmedi.kiosk.module.profile.entity.PhysicianProfile;
@@ -49,17 +51,20 @@ public class AccountController {
     private final SessionRegistry sessionRegistry;
     private final LanguageService languageService;
     private final ProfilePictureStorage pictureStorage;
+    private final DisplayPreferencesService displayPreferencesService;
 
     public AccountController(AccountLifecycleService accountLifecycleService,
                              SecurityPolicyProperties securityPolicyProperties,
                              SessionRegistry sessionRegistry,
                              LanguageService languageService,
-                             ProfilePictureStorage pictureStorage) {
+                             ProfilePictureStorage pictureStorage,
+                             DisplayPreferencesService displayPreferencesService) {
         this.accountLifecycleService = accountLifecycleService;
         this.securityPolicyProperties = securityPolicyProperties;
         this.sessionRegistry = sessionRegistry;
         this.languageService = languageService;
         this.pictureStorage = pictureStorage;
+        this.displayPreferencesService = displayPreferencesService;
     }
 
     @GetMapping("/password")
@@ -146,15 +151,37 @@ public class AccountController {
         return "redirect:/account/sessions";
     }
 
+    /**
+     * Persists the signed-in user's display preferences (theme / motion /
+     * text size). Called by the profile preference controls after they apply
+     * the change client-side, and usable as a plain form post. Values are
+     * validated against closed sets; anonymous users have no access.
+     */
+    @PostMapping("/preferences")
+    public String updateDisplayPreferences(@RequestParam String theme,
+                                           @RequestParam String motion,
+                                           @RequestParam String textSize,
+                                           Authentication authentication) {
+        ApplicationUserDetails details = requireDetails(authentication);
+        try {
+            displayPreferencesService.update(details.userId(), theme, motion, textSize);
+        } catch (DisplayPreferencesValidationException ex) {
+            return "redirect:/account/profile?prefError";
+        }
+        return "redirect:/account/profile?updated";
+    }
+
     // ─── Profile ──────────────────────────────────────────────────────
 
     @GetMapping("/profile")
     public String profile(@RequestParam(required = false) boolean updated,
+                          @RequestParam(required = false) boolean prefError,
                           Authentication authentication,
                           Model model) {
         ApplicationUserDetails details = requireDetails(authentication);
         User account = accountLifecycleService.requireUser(details.userId());
         model.addAttribute("updated", updated);
+        model.addAttribute("prefError", prefError);
         seedProfileModel(account, model);
         return "account/profile";
     }
@@ -195,6 +222,17 @@ public class AccountController {
                 accountLifecycleService.updatePhysicianProfile(details.userId(),
                         new AccountLifecycleService.PhysicianProfileEdit(
                                 dob, phone, email, preferredLanguage, theme, notificationPrefs, picture));
+                // Keep the legacy physician profile theme and the RD2 display
+                // preference in sync: one user, one theme truth.
+                try {
+                    displayPreferencesService.update(details.userId(),
+                            theme == null || theme.isBlank() ? "system" : theme.trim(),
+                            displayPreferencesService.preferencesOf(details.userId()).motion(),
+                            displayPreferencesService.preferencesOf(details.userId()).textSize());
+                } catch (DisplayPreferencesValidationException ignored) {
+                    // Theme validation for the profile is handled by the
+                    // lifecycle service; don't fail the profile save twice.
+                }
             } else {
                 throw new AccountValidationException("Administrator accounts are managed through the console.");
             }
