@@ -8,6 +8,7 @@
 <div th:replace="~{fragments/publicnav :: publicnav('home')}"></div>
 
 <main id="main-content">
+    <!-- Hero: what it is, for whom, and the honest operational state. -->
     <section class="mk-hero">
         <div class="container py-5">
             <div class="row align-items-center g-4 py-lg-4">
@@ -17,10 +18,10 @@
                         Structured health intake from kiosk to clinician
                     </h1>
                     <p class="lead text-secondary mb-4">
-                        MediKiosk helps a patient describe their health concern at a kiosk,
-                        structures it into a clinical case, surfaces it to a physician for
-                        review, and keeps every step traceable. It assists clinicians —
-                        it never pretends to diagnose.
+                        MediKiosk turns a patient's own words into an organized clinical case:
+                        a guided conversation, document extraction with provenance, and a
+                        physician workspace built for review &mdash; every step audited, nothing
+                        silently rewritten.
                     </p>
                     <div class="d-flex flex-wrap gap-2 mb-4">
                         <a th:href="@{/login}" class="btn btn-primary btn-lg btn-lg-mobile mk-interactive">Sign in</a>
@@ -53,7 +54,7 @@
                                 </li>
                                 <li class="journey-step">
                                     <span class="journey-dot" aria-hidden="true">3</span>
-                                    <span><strong>Scan</strong> &mdash; upload and extract report documents with provenance</span>
+                                    <span><strong>Scan</strong> &mdash; upload reports; extraction records method, provider, status</span>
                                 </li>
                                 <li class="journey-step">
                                     <span class="journey-dot" aria-hidden="true">4</span>
@@ -61,7 +62,7 @@
                                 </li>
                                 <li class="journey-step">
                                     <span class="journey-dot" aria-hidden="true">5</span>
-                                    <span><strong>Consult</strong> &mdash; physician reviews, documents the assessment</span>
+                                    <span><strong>Consult</strong> &mdash; physician reviews, decides, documents the assessment</span>
                                 </li>
                             </ol>
                             <div class="mt-3 small text-secondary" id="kioskMeta"></div>
@@ -72,39 +73,53 @@
         </div>
     </section>
 
-    <section class="mk-section">
+    <!-- Role entry points: every portal link points at a real, secured route. -->
+    <section class="mk-section" aria-label="Entry points">
         <div class="container">
             <div class="row g-4">
                 <div class="col-md-4">
-                    <div class="card h-100 shadow-sm border-0 mk-stagger">
-                        <div class="card-body">
+                    <div class="card h-100 shadow-sm border-0 mk-stagger mk-liftable">
+                        <div class="card-body d-flex flex-column">
                             <h2 class="h5 fw-bold mb-2">For patients</h2>
-                            <p class="text-muted mb-0">
-                                A calm, language-aware way to record a health concern at a kiosk,
-                                review your answers, attach reports, and know exactly what happens next.
+                            <p class="text-muted mb-3">
+                                Record a health concern in a guided conversation &mdash; in a language
+                                you actually speak &mdash; review and correct your answers, attach
+                                reports, and see exactly what happens next.
                             </p>
+                            <div class="mt-auto d-flex flex-wrap gap-2">
+                                <a th:href="@{/login}" class="btn btn-primary btn-sm mk-interactive">Patient sign in</a>
+                                <a th:href="@{/register}" class="btn btn-outline-primary btn-sm mk-interactive">Create account</a>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card h-100 shadow-sm border-0 mk-stagger">
-                        <div class="card-body">
+                    <div class="card h-100 shadow-sm border-0 mk-stagger mk-liftable">
+                        <div class="card-body d-flex flex-column">
                             <h2 class="h5 fw-bold mb-2">For physicians</h2>
-                            <p class="text-muted mb-0">
-                                A clinical workspace with the patient's own words, extracted documents,
-                                provenance, review state, and a documented assessment &mdash; not a statistics screen.
+                            <p class="text-muted mb-3">
+                                A clinical workspace: the patient's own words, extracted document
+                                findings with provenance, patient corrections, red flags, and your
+                                documented review &mdash; not a statistics screen.
                             </p>
+                            <div class="mt-auto">
+                                <a th:href="@{/login}" class="btn btn-outline-secondary btn-sm mk-interactive">Physician sign in</a>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card h-100 shadow-sm border-0 mk-stagger">
-                        <div class="card-body">
+                    <div class="card h-100 shadow-sm border-0 mk-stagger mk-liftable">
+                        <div class="card-body d-flex flex-column">
                             <h2 class="h5 fw-bold mb-2">For administrators</h2>
-                            <p class="text-muted mb-0">
-                                Platform control: accounts, system settings, capability status, and a
-                                real audit trail. Admin operates the system, never the clinical truth.
+                            <p class="text-muted mb-3">
+                                Platform control: accounts and provisioning, capability status,
+                                filterable audit trail, and runtime settings. Admin operates the
+                                system &mdash; never the clinical truth.
                             </p>
+                            <div class="mt-auto">
+                                <a th:href="@{/login}" class="btn btn-outline-secondary btn-sm mk-interactive">Admin sign in</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -129,11 +144,11 @@
                         </li>
                         <li>
                             <span class="mk-check" aria-hidden="true">&#10003;</span>
-                            <span><strong>Provenance everywhere.</strong> Documents record the extraction method and provider; timeline events point at their source data.</span>
+                            <span><strong>Provenance everywhere.</strong> Documents record the extraction method and provider; the physician decides what to trust.</span>
                         </li>
                         <li>
                             <span class="mk-check" aria-hidden="true">&#10003;</span>
-                            <span><strong>Local by design.</strong> Demo mode uses a local identity, records consent, and transmits nothing to ABDM or an external HIS.</span>
+                            <span><strong>Corrections are additive.</strong> A patient can correct an answer, but the original stays &mdash; and the physician sees both.</span>
                         </li>
                         <li>
                             <span class="mk-check" aria-hidden="true">&#10003;</span>
@@ -164,18 +179,35 @@
                                           th:text="${aiConfigured} ? 'Configured' : 'Depending on key'">Depending on key</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                    <span>Image OCR &amp; handwriting recognition</span>
-                                    <span class="badge text-bg-light border text-muted">NOT_IMPLEMENTED</span>
+                                    <span>Printed-document OCR via Bhashini/ULCA</span>
+                                    <span class="badge text-bg-warning" th:if="${ocrImplementedNotVerified}"
+                                          title="Integration is implemented; this deployment has no verified credentials, so it is treated as not live.">Implemented, not credential-verified</span>
+                                    <span class="badge text-bg-success" th:if="${ocrOperational}"
+                                          th:text="${ocrStatus}">Live</span>
+                                    <span class="badge text-bg-light border text-muted" th:unless="${ocrImplementedNotVerified or ocrOperational}"
+                                          th:text="${ocrStatus}">NOT_IMPLEMENTED</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>Voice input / read-aloud (ASR / TTS)</span>
+                                    <span class="badge text-bg-success" th:if="${voiceLive}">Configured</span>
+                                    <span class="badge text-bg-light border text-muted" th:unless="${voiceLive}">Depending on key</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>Handwriting recognition</span>
+                                    <span class="badge text-bg-light border text-muted"
+                                          th:text="${hwrAvailable} ? ${hwrStatus} : 'NOT_IMPLEMENTED'">NOT_IMPLEMENTED</span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                     <span>External ABDM / HIS transmission</span>
-                                    <span class="badge text-bg-light border text-muted">Local only</span>
+                                    <span class="badge" th:classappend="${hisConfigured} ? 'text-bg-success' : 'text-bg-light border text-muted'"
+                                          th:text="${hisConfigured} ? ${hisLabel} : 'Local only'">Local only</span>
                                 </li>
                             </ul>
                             <p class="small text-muted mt-3 mb-0">
-                                Every status above is produced by the running application. Inspect them
-                                anonymously at <code>/api/capabilities/ocr</code> and
-                                <code>/api/capabilities/hwr</code>.
+                                Every status above is produced by the running application from its
+                                actual configuration. Inspect them anonymously at
+                                <code>/api/capabilities/ocr</code>, <code>/api/capabilities/hwr</code>,
+                                <code>/api/capabilities/ai</code> and <code>/api/capabilities/voice</code>.
                             </p>
                         </div>
                     </div>

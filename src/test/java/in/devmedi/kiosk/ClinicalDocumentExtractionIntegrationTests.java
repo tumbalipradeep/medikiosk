@@ -334,7 +334,8 @@ class ClinicalDocumentExtractionIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UNSUPPORTED"))
                 .andExpect(jsonPath("$.errorCategory").value("NO_OCR_ENGINE"))
-                .andExpect(jsonPath("$.errorMessage").value(containsString("OCR engine is not available")))
+                // RD3: the honest message names the configured engine that is missing.
+                .andExpect(jsonPath("$.errorMessage").value(containsString("is not available in this deployment")))
                 .andExpect(jsonPath("$.extractedText").value(org.hamcrest.Matchers.nullValue()));
     }
 

@@ -163,6 +163,23 @@ No external API was integrated; OCR/HWR remain `NOT_IMPLEMENTED`. See
 `docs/RD2-audit.md`. Full clean regression: 91 test classes / 780 tests,
 zero failures, zero errors, zero skipped.
 
+**M10 — RD3: Homepage product surface, printed-document OCR, honest
+integrations (complete).** The landing page now derives every capability row
+from the running application's authoritative services — OCR, voice, HWR and
+HIS/ABDM statuses render the actual deployment state instead of static
+claims — and adds explicit patient/physician/administrator entry points with
+real, secured routes. Printed-document OCR is implemented against the
+Bhashini/ULCA pipeline through the same credential-gated gateway used by the
+voice layer (`BhashiniOcrProvider`), flowing into the existing provenance and
+physician-review pipeline; without verified credentials it reports
+`IMPLEMENTED_BUT_NOT_CREDENTIAL_VERIFIED` everywhere and refuses to fabricate
+text, so nothing is presented as live. Handwriting recognition remains
+genuinely `NOT_IMPLEMENTED` — ordinary OCR is never relabelled as HWR.
+ABDM/HIS stays an honest local-only boundary: the admin console now states
+the concrete requirements (HIP registration, ABHA linking, consent-manager
+artefacts, gateway credentials) that no deployment here can satisfy, and no
+transmission code or connectivity claim was added. See `docs/RD3-audit.md`.
+
 MediKiosk currently includes:
 
 - Authentication/security

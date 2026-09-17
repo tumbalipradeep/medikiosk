@@ -14,6 +14,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,8 +51,10 @@ class OcrProviderTests {
         BufferedImage buffered = new BufferedImage(120, 80, BufferedImage.TYPE_INT_RGB);
         ImageIO.write(buffered, "png", image.toFile());
 
-        DocumentTextProcessor processor =
-                new DocumentTextProcessor(new PdfTextExtractor(), new LocalDevOcrProvider());
+        DocumentTextProcessor processor = new DocumentTextProcessor(
+                new PdfTextExtractor(),
+                List.of(new LocalDevOcrProvider()),
+                new in.devmedi.kiosk.module.ocr.OcrProperties("local-dev", null, 0));
 
         ExtractionOutcome outcome = processor.process(image, "image/png");
 
@@ -66,8 +69,10 @@ class OcrProviderTests {
         BufferedImage buffered = new BufferedImage(120, 80, BufferedImage.TYPE_INT_RGB);
         ImageIO.write(buffered, "jpg", image.toFile());
 
-        DocumentTextProcessor processor =
-                new DocumentTextProcessor(new PdfTextExtractor(), new LocalDevOcrProvider());
+        DocumentTextProcessor processor = new DocumentTextProcessor(
+                new PdfTextExtractor(),
+                List.of(new LocalDevOcrProvider()),
+                new in.devmedi.kiosk.module.ocr.OcrProperties("local-dev", null, 0));
 
         ExtractionOutcome outcome = processor.process(image, "image/jpeg");
 
@@ -77,8 +82,10 @@ class OcrProviderTests {
 
     @Test
     void unsupportedContentTypesAreRejectedHonestly() throws IOException {
-        DocumentTextProcessor processor =
-                new DocumentTextProcessor(new PdfTextExtractor(), new LocalDevOcrProvider());
+        DocumentTextProcessor processor = new DocumentTextProcessor(
+                new PdfTextExtractor(),
+                List.of(new LocalDevOcrProvider()),
+                new in.devmedi.kiosk.module.ocr.OcrProperties("local-dev", null, 0));
 
         ExtractionOutcome outcome = processor.process(tempDir.resolve("whatever.bin"), "application/gzip");
 

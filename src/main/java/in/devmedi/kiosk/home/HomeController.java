@@ -4,6 +4,12 @@ import in.devmedi.kiosk.module.admin.config.SystemSetting;
 import in.devmedi.kiosk.module.admin.config.SystemSettingRepository;
 import in.devmedi.kiosk.module.ai.provider.AiFailoverService;
 import in.devmedi.kiosk.module.ai.provider.AiFailoverService.AiProviderEnabled;
+import in.devmedi.kiosk.module.his.HisIntegrationBoundary;
+import in.devmedi.kiosk.module.ocr.OcrCapabilityService;
+import in.devmedi.kiosk.module.ocr.OcrCapabilityService.HwrCapabilityResponse;
+import in.devmedi.kiosk.module.ocr.OcrCapabilityService.OcrCapabilitiesResponse;
+import in.devmedi.kiosk.module.ocr.OcrProviderStatus;
+import in.devmedi.kiosk.module.voice.config.VoiceProperties;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
@@ -24,11 +30,20 @@ public class HomeController {
 
     private final SystemSettingRepository settingRepository;
     private final AiFailoverService aiFailoverService;
+    private final OcrCapabilityService ocrCapabilityService;
+    private final VoiceProperties voiceProperties;
+    private final HisIntegrationBoundary hisIntegrationBoundary;
 
     public HomeController(SystemSettingRepository settingRepository,
-                          AiFailoverService aiFailoverService) {
+                          AiFailoverService aiFailoverService,
+                          OcrCapabilityService ocrCapabilityService,
+                          VoiceProperties voiceProperties,
+                          HisIntegrationBoundary hisIntegrationBoundary) {
         this.settingRepository = settingRepository;
         this.aiFailoverService = aiFailoverService;
+        this.ocrCapabilityService = ocrCapabilityService;
+        this.voiceProperties = voiceProperties;
+        this.hisIntegrationBoundary = hisIntegrationBoundary;
     }
 
     @GetMapping("/")
@@ -50,13 +65,34 @@ public class HomeController {
                 }
             }
         }
-        // The landing AI badge is derived from the same authoritative source the
-        // runtime uses to decide whether any conversational-AI provider will be
-        // attempted (failover order + API-key presence). No hard-coded claim.
+
+        // Every capability row on the landing page is derived from the same
+        // authoritative in-process state the runtime itself uses — nothing on
+        // this page is a hard-coded claim.
         List<AiProviderEnabled> aiProviders = aiFailoverService.providerStatuses();
         model.addAttribute("aiProviders", aiProviders);
         model.addAttribute("aiConfigured",
                 aiProviders.stream().anyMatch(AiProviderEnabled::enabled));
+
+        OcrCapabilitiesResponse ocr = ocrCapabilityService.ocrCapabilities();
+        model.addAttribute("ocrStatus", ocr.overallStatus().name());
+        model.addAttribute("ocrOperational", ocr.overallStatus().isOperational());
+
+        HwrCapabilityResponse hwr = ocrCapabilityService.hwrCapability();
+        model.addAttribute("hwrStatus", hwr.status().name());
+        model.addAttribute("hwrAvailable", hwr.available());
+
+        boolean voiceLive = (voiceProperties.asrUsesBhashini() && voiceProperties.getBhashini().isComplete())
+                || (voiceProperties.ttsUsesBhashini() && voiceProperties.getBhashini().isComplete());
+        model.addAttribute("voiceLive", voiceLive);
+
+        model.addAttribute("hisLabel", hisIntegrationBoundary.transportLabel());
+        model.addAttribute("hisConfigured", hisIntegrationBoundary.isConfigured());
+        // RD3: printed-document OCR is implemented against the Bhashini/ULCA
+        // pipeline but is honest until credentials verify it end to end.
+        model.addAttribute("ocrImplementedNotVerified",
+                OcrProviderStatus.IMPLEMENTED_BUT_NOT_CREDENTIAL_VERIFIED.name().equals(ocr.overallStatus().name()));
+
         return "home";
     }
 

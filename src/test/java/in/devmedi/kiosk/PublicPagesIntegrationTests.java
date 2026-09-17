@@ -1,6 +1,8 @@
 package in.devmedi.kiosk;
 
 import in.devmedi.kiosk.module.ai.provider.AiFailoverService;
+import in.devmedi.kiosk.module.ocr.OcrCapabilityService;
+import in.devmedi.kiosk.module.voice.config.VoiceProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.charset.StandardCharsets;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -32,6 +35,12 @@ class PublicPagesIntegrationTests {
 
     @Autowired
     private AiFailoverService aiFailoverService;
+
+    @Autowired
+    private OcrCapabilityService ocrCapabilityService;
+
+    @Autowired
+    private VoiceProperties voiceProperties;
 
     @Test
     void landingPageRendersTheFullProductStory() throws Exception {
@@ -101,6 +110,35 @@ class PublicPagesIntegrationTests {
         MockHttpSession session = login("patient", "patient123");
         mockMvc.perform(get("/").session(session))
                 .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    void landingCapabilityRowsAreDerivedFromAuthoritativeServices() throws Exception {
+        MvcResult result = mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                // Role entry points point at real, secured routes.
+                .andExpect(content().string(containsString("For patients")))
+                .andExpect(content().string(containsString("For physicians")))
+                .andExpect(content().string(containsString("For administrators")))
+                .andExpect(content().string(containsString("Patient sign in")))
+                // HWR stays honestly absent regardless of anything else.
+                .andExpect(content().string(containsString("Handwriting recognition")))
+                .andReturn();
+        String html = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // The OCR row must reflect the OCR capability service exactly: with no
+        // verified credentials it must NOT claim to be Live.
+        var ocr = ocrCapabilityService.ocrCapabilities();
+        assertThat(html).contains("Printed-document OCR");
+        if (!ocr.overallStatus().isOperational()) {
+            assertThat(html).doesNotContain("OCR</span>");
+        }
+
+        // The voice row must agree with the authoritative voice configuration.
+        boolean voiceLive = voiceProperties.asrUsesBhashini() && voiceProperties.getBhashini().isComplete();
+        if (!voiceLive) {
+            assertThat(html).contains("Depending on key");
+        }
     }
 
     @Test

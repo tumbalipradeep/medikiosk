@@ -26,7 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>Compute call</b> — {@code POST callbackUrl} with the returned
  *       authorization header; ASR sends base64 {@code audioContent} and returns
  *       a text transcript, TTS sends {@code source} text and returns base64
- *       {@code audioContent}.</li>
+ *       {@code audioContent}, OCR sends base64 {@code image} and returns
+ *       recognized {@code source} text.</li>
  * </ol>
  *
  * <p>The config response for each (task, language) pair is cached in-process
@@ -36,13 +37,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * conservative public statuses.</p>
  *
  * <p><strong>Privacy:</strong> this gateway never logs credentials, patient
- * text, or audio content — only the failure classification (see the service
- * layer, which logs language + duration + failure kind).</p>
+ * text, audio, or image content — only the failure classification (see the
+ * service layers, which log language + duration + failure kind).</p>
  */
 public final class BhashiniGateway {
 
     public static final String TASK_ASR = "asr";
     public static final String TASK_TTS = "tts";
+    public static final String TASK_OCR = "ocr";
 
     record Pipeline(String callbackUrl, String authName, String authValue, String serviceId) {
     }
@@ -120,6 +122,41 @@ public final class BhashiniGateway {
         } catch (IllegalArgumentException ex) {
             throw new BhashiniException(BhashiniFailure.MALFORMED, "TTS response carried invalid base64 audio", ex);
         }
+    }
+
+    /**
+     * Runs printed-text OCR over one page image.
+     *
+     * <p>This is the same credential-gated, two-round-trip flow as ASR/TTS.
+     * It is <strong>printed-text recognition only</strong> — the caller must
+     * never present its output as handwriting recognition.</p>
+     *
+     * @param sourceLanguage ISO-639 base language code of the expected text
+     *                       (e.g. {@code en}); the pipeline is looked up per language
+     * @param image          the raw page image bytes (JPEG/PNG as uploaded)
+     * @return the recognized text, or an empty string when the page carried no
+     *         recognizable text
+     * @throws BhashiniException classified on any provider/transport failure
+     */
+    public String recognizePrintedText(String sourceLanguage, byte[] image) {
+        Pipeline pipeline = pipeline(TASK_OCR, sourceLanguage);
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put("language", Map.of("sourceLanguage", sourceLanguage));
+        config.put("serviceId", pipeline.serviceId());
+
+        Map<String, Object> inputData = new LinkedHashMap<>();
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("image", Base64.getEncoder().encodeToString(image));
+        input.put("languages", sourceLanguage);
+        inputData.put("image", List.of(input));
+
+        JsonNode response = compute(pipeline, "ocr", config, inputData);
+        JsonNode output = firstOutput(response);
+        if (output == null || !output.hasNonNull("source")) {
+            throw new BhashiniException(BhashiniFailure.MALFORMED,
+                    "OCR response missing pipelineResponse[0].output[0].source");
+        }
+        return output.path("source").asText("");
     }
 
     private Pipeline pipeline(String taskType, String sourceLanguage) {

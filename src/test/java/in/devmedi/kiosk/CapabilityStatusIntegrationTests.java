@@ -34,16 +34,24 @@ class CapabilityStatusIntegrationTests {
 
     @Test
     void ocrCapabilityEndpointIsAnonymousAndHonest() throws Exception {
+        // Two engines are bound: the credential-gated Bhashini printed-text OCR
+        // (implemented, NOT credential-verified) and the honest local-dev seam.
+        // The overall status follows the CONFIGURED provider (local-dev), so the
+        // default deployment still reports NOT_IMPLEMENTED — never live.
         mockMvc.perform(get("/api/capabilities/ocr"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.configuredProvider").value("local-dev"))
                 .andExpect(jsonPath("$.overallStatus").value("NOT_IMPLEMENTED"))
-                .andExpect(jsonPath("$.engines[0].engineName").value("local-dev (no OCR engine)"))
-                .andExpect(jsonPath("$.engines[0].status").value("NOT_IMPLEMENTED"))
+                .andExpect(jsonPath("$.engines.length()").value(2))
+                .andExpect(jsonPath("$.engines[0].engineName").value("bhashini (printed-text OCR)"))
+                .andExpect(jsonPath("$.engines[0].status").value("IMPLEMENTED_BUT_NOT_CREDENTIAL_VERIFIED"))
                 .andExpect(jsonPath("$.engines[0].available").value(false))
-                .andExpect(jsonPath("$.engines[0].languageStatus.ENGLISH").value("NOT_IMPLEMENTED"))
-                .andExpect(jsonPath("$.engines[0].languageStatus.HINDI").value("NOT_IMPLEMENTED"))
-                .andExpect(jsonPath("$.engines[0].languageStatus.TELUGU").value("NOT_IMPLEMENTED"));
+                .andExpect(jsonPath("$.engines[1].engineName").value("local-dev (no OCR engine)"))
+                .andExpect(jsonPath("$.engines[1].status").value("NOT_IMPLEMENTED"))
+                .andExpect(jsonPath("$.engines[1].available").value(false))
+                .andExpect(jsonPath("$.engines[1].languageStatus.ENGLISH").value("NOT_IMPLEMENTED"))
+                .andExpect(jsonPath("$.engines[1].languageStatus.HINDI").value("NOT_IMPLEMENTED"))
+                .andExpect(jsonPath("$.engines[1].languageStatus.TELUGU").value("NOT_IMPLEMENTED"));
     }
 
     @Test

@@ -92,8 +92,9 @@
                         <h2 class="h5 mb-3">Capability &amp; integration status</h2>
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                <span>Image OCR <span class="small text-muted" th:text="'(' + ${capabilities.ocrProvider} + ')'">(local-dev)</span></span>
-                                <span class="badge text-bg-light border text-muted"
+                                <span>Image OCR <span class="small text-muted" th:text="'(' + ${capabilities.ocrProvider} + ', ' + ${capabilities.ocrEngineCount} + ' engines bound)'">(local-dev, 2 engines bound)</span></span>
+                                <span class="badge"
+                                      th:classappend="${capabilities.ocrStatus.name() == 'IMPLEMENTED_BUT_NOT_CREDENTIAL_VERIFIED'} ? 'text-bg-warning' : 'text-bg-light border text-muted'"
                                       th:text="${capabilities.ocrStatus}">NOT_IMPLEMENTED</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0">
@@ -113,7 +114,9 @@
                                       th:text="${#lists.size(capabilities.aiProviders)} + ' bound'">0 bound</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                <span>External HIS / ABDM transmission</span>
+                                <span>External HIS / ABDM transmission
+                                    <span class="small text-muted d-block">Requires HIP registration, ABHA linking, consent-manager artefacts and sandbox credentials — none configured in this deployment.</span>
+                                </span>
                                 <span class="badge text-bg-light border text-muted"
                                       th:text="${capabilities.hisConfigured} ? 'Configured' : 'Local only'">Local only</span>
                             </li>
