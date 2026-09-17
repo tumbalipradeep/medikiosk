@@ -7,6 +7,8 @@ import in.devmedi.kiosk.module.voice.speech.SpeechRecognitionService;
 import in.devmedi.kiosk.module.voice.speech.SpeechSynthesisService;
 import in.devmedi.kiosk.module.voice.speech.UnavailableSpeechRecognitionService;
 import in.devmedi.kiosk.module.voice.speech.UnavailableSpeechSynthesisService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,11 +30,45 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties(VoiceProperties.class)
 public class VoiceConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(VoiceConfig.class);
+
+    /**
+     * Startup-time truthfulness check: a switch naming a provider this build
+     * does not implement, or a real switch without complete credentials, would
+     * otherwise silently bind the UNAVAILABLE fallback. Logged once, here, so
+     * the operator sees exactly why voice is not live and which environment
+     * variable to change. Never logs credential values.
+     */
+    private static void warnIfMisconfigured(String direction, String switchValue,
+                                            VoiceProperties props, boolean switchKnown,
+                                            boolean providerEngaged) {
+        if (!switchKnown) {
+            log.warn("voice.{} provider switch '{}' is not a known provider {}; "
+                            + "the deterministic UNAVAILABLE fallback is active. Set {} to '{}' "
+                            + "(or '{}') to clear this warning.",
+                    direction, switchValue, VoiceProperties.KNOWN_PROVIDERS,
+                    direction.equals("asr")
+                            ? VoiceProperties.ENV_ASR_PROVIDER : VoiceProperties.ENV_TTS_PROVIDER,
+                    VoiceProperties.PROVIDER_BHASHINI, VoiceProperties.PROVIDER_UNAVAILABLE);
+        } else if (!providerEngaged) {
+            log.warn("voice.{} provider is '{}' but Bhashini credentials are incomplete; "
+                            + "the UNAVAILABLE fallback is active and patients type instead. "
+                            + "Set {}, {} and {} (never commit values) and restart.",
+                    direction, switchValue,
+                    VoiceProperties.ENV_BHASHINI_USER_ID,
+                    VoiceProperties.ENV_BHASHINI_API_KEY,
+                    VoiceProperties.ENV_BHASHINI_PIPELINE_ID);
+        }
+    }
+
     @Bean
     public SpeechRecognitionService speechRecognitionService(VoiceProperties props,
                                                              LanguageService languageService,
                                                              RestClient.Builder restClientBuilder) {
-        if (props.asrUsesBhashini() && props.getBhashini().isComplete()) {
+        boolean engaged = props.asrUsesBhashini() && props.getBhashini().isComplete();
+        warnIfMisconfigured("asr", props.getAsrProvider(), props,
+                props.asrProviderKnown(), engaged);
+        if (engaged) {
             return new BhashiniSpeechRecognitionService(
                     props.getBhashini(), languageService, restClientBuilder);
         }
@@ -43,7 +79,10 @@ public class VoiceConfig {
     public SpeechSynthesisService speechSynthesisService(VoiceProperties props,
                                                          LanguageService languageService,
                                                          RestClient.Builder restClientBuilder) {
-        if (props.ttsUsesBhashini() && props.getBhashini().isComplete()) {
+        boolean engaged = props.ttsUsesBhashini() && props.getBhashini().isComplete();
+        warnIfMisconfigured("tts", props.getTtsProvider(), props,
+                props.ttsProviderKnown(), engaged);
+        if (engaged) {
             return new BhashiniSpeechSynthesisService(
                     props.getBhashini(), languageService, restClientBuilder);
         }

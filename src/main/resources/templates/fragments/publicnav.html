@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="publicnav(active)">
-<header class="bg-primary text-white shadow-sm">
+<header class="mk-topnav-header">
     <div class="container">
         <div class="mk-topnav">
-            <a th:href="@{/}" class="text-white text-decoration-none" aria-label="MediKiosk home">
+            <a th:href="@{/}" class="text-decoration-none" aria-label="MediKiosk home">
                 <th:block th:replace="~{fragments/brand :: brand('sm')}"></th:block>
             </a>
             <nav class="mk-topnav__links" aria-label="Primary">
@@ -14,7 +14,7 @@
                 <a th:href="@{/contact}" class="mk-topnav__link" th:classappend="${active == 'contact'} ? 'is-active' : ''">Contact</a>
             </nav>
             <div class="mk-topnav__links">
-                <a th:href="@{/login}" class="btn btn-outline-light btn-sm mk-topnav__cta">Sign in</a>
+                <a th:href="@{/login}" class="btn btn-outline-primary btn-sm mk-topnav__cta">Sign in</a>
             </div>
         </div>
     </div>

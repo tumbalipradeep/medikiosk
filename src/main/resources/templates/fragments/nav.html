@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="authnav">
-<header class="bg-primary text-white shadow-sm">
+<header class="mk-topnav-header">
     <div class="container">
         <div class="mk-topnav">
             <a th:href="${user.roleLabel == 'PHYSICIAN'} ? '/physician/home' : (${user.roleLabel == 'ADMIN'} ? '/admin/home' : '/patient/home')"
-               class="text-white text-decoration-none" aria-label="MediKiosk home">
+               class="text-decoration-none" aria-label="MediKiosk home">
                 <th:block th:replace="~{fragments/brand :: brand('sm')}"></th:block>
             </a>
             <nav class="mk-topnav__links" aria-label="Portal">
@@ -17,9 +17,9 @@
                 <a class="mk-topnav__link" th:href="@{/account/profile}">Account</a>
             </nav>
             <div class="mk-topnav__links">
-                <span class="small text-white-50">Signed in as <strong class="text-white" th:text="${user.displayName}">User</strong></span>
+                <span class="small text-body-secondary">Signed in as <strong th:text="${user.displayName}">User</strong></span>
                 <form th:action="@{/logout}" method="post" class="mb-0">
-                    <button type="submit" class="btn btn-outline-light btn-sm mk-topnav__cta">Sign out</button>
+                    <button type="submit" class="btn btn-outline-primary btn-sm mk-topnav__cta">Sign out</button>
                 </form>
             </div>
         </div>

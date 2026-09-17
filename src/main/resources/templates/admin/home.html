@@ -102,11 +102,23 @@
                                 <span class="badge text-bg-light border text-muted"
                                       th:text="${capabilities.hwrStatus}">NOT_IMPLEMENTED</span>
                             </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                <span>Patient voice (ASR/TTS) <span class="small text-muted"
-                                      th:text="'(' + ${capabilities.voiceStatus.asrProvider} + '/' + ${capabilities.voiceStatus.ttsProvider} + ')'">(unavailable/unavailable)</span></span>
-                                <span class="badge" th:classappend="${capabilities.voiceStatus.asrAvailable or capabilities.voiceStatus.ttsAvailable} ? 'text-bg-success' : 'text-bg-light border text-muted'"
-                                      th:text="${capabilities.voiceStatus.asrAvailable or capabilities.voiceStatus.ttsAvailable} ? 'Provider engaged' : 'UNAVAILABLE'">UNAVAILABLE</span>
+                            <li class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Patient voice (ASR/TTS) <span class="small text-muted"
+                                          th:text="'(' + ${capabilities.voiceStatus.asrProvider} + '/' + ${capabilities.voiceStatus.ttsProvider} + ')'">(unavailable/unavailable)</span></span>
+                                    <span class="badge" th:classappend="${capabilities.voiceStatus.asrAvailable or capabilities.voiceStatus.ttsAvailable} ? 'text-bg-success' : 'text-bg-light border text-muted'"
+                                          th:text="${capabilities.voiceStatus.asrAvailable or capabilities.voiceStatus.ttsAvailable} ? 'Provider engaged' : 'UNAVAILABLE'">UNAVAILABLE</span>
+                                </div>
+                                <div class="small text-secondary mt-1" th:if="${capabilities.voiceSetupHint != null}"
+                                      th:text="${capabilities.voiceSetupHint}">Setup hint</div>
+                            </li>
+                            <li class="list-group-item px-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Image OCR setup</span>
+                                    <span class="badge text-bg-light border text-muted" th:if="${capabilities.ocrSetupHint == null}">No action needed</span>
+                                </div>
+                                <div class="small text-secondary mt-1" th:if="${capabilities.ocrSetupHint != null}"
+                                      th:text="${capabilities.ocrSetupHint}">Setup hint</div>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                 <span>Conversational AI providers</span>

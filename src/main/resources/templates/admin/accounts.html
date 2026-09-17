@@ -36,7 +36,9 @@
                     <form th:action="@{/admin/physicians/provision}" method="post" class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label" for="pUsername">Username</label>
-                            <input class="form-control" id="pUsername" name="username" required maxlength="100">
+                            <input class="form-control" id="pUsername" name="username" required minlength="3" maxlength="64"
+                                   title="3-64 characters. Any ordinary readable username is allowed.">
+                            <div class="form-text">3&ndash;64 characters. Any ordinary readable username is allowed.</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="pDisplayName">Display name</label>

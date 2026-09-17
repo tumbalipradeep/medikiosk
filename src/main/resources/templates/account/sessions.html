@@ -1,17 +1,10 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Active sessions - MediKiosk</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" th:href="@{/css/app.css}">
-</head>
+<head th:replace="~{fragments/head :: head('Active sessions - MediKiosk')}"></head>
 <body class="bg-light d-flex flex-column min-vh-100">
-<header class="bg-primary text-white py-3 shadow-sm">
+<header class="py-3">
     <div class="container d-flex justify-content-between align-items-center">
-        <a th:href="@{/}" class="text-white text-decoration-none">
+        <a th:href="@{/}" class="text-decoration-none">
             <th:block th:replace="~{fragments/brand :: brand('sm')}"></th:block>
         </a>
     </div>

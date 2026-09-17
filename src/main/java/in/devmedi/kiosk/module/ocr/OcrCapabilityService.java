@@ -1,6 +1,7 @@
 package in.devmedi.kiosk.module.ocr;
 
 import in.devmedi.kiosk.module.document.extraction.OcrProvider;
+import in.devmedi.kiosk.module.voice.config.VoiceProperties;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -56,7 +57,8 @@ public class OcrCapabilityService {
                 + selected.engineName() + "'."
                 : null;
 
-        return new OcrCapabilitiesResponse(configuredName, selectedCapability.status(), capabilities, fallbackNote);
+        return new OcrCapabilitiesResponse(configuredName, selectedCapability.status(), capabilities,
+                fallbackNote, ocrSetupHint(selectedCapability));
     }
 
     public HwrCapabilityResponse hwrCapability() {
@@ -132,11 +134,46 @@ public class OcrCapabilityService {
                 || normalizedEngine.contains(normalizedConfigured);
     }
 
+    /**
+     * Actionable, secret-free setup guidance for the OCR boundary, derived from
+     * the actual configuration state. Null once OCR is operational — an
+     * operational capability needs no setup instructions.
+     */
+    private String ocrSetupHint(OcrCapability selectedCapability) {
+        if (selectedCapability.status().isOperational()) {
+            return null;
+        }
+        String selectedName = selectedCapability.engineName();
+        if (selectedName != null && selectedName.toLowerCase(java.util.Locale.ROOT).contains("bhashini")) {
+            if (selectedCapability.status() == OcrProviderStatus.IMPLEMENTED_BUT_NOT_CREDENTIAL_VERIFIED
+                    && engines.stream()
+                            .filter(e -> e.engineName() != null
+                                    && e.engineName().toLowerCase(java.util.Locale.ROOT).contains("bhashini"))
+                            .findFirst()
+                            .map(OcrProvider::isAvailable)
+                            .orElse(false)) {
+                return "Credentials are set but this deployment has not verified the OCR pipeline "
+                        + "end to end; treat extracted text as untrusted until an operator verifies it. "
+                        + "See docs/WC-setup-guide.md for the verification steps.";
+            }
+            return "Set " + VoiceProperties.ENV_BHASHINI_USER_ID + ", "
+                    + VoiceProperties.ENV_BHASHINI_API_KEY + ", "
+                    + VoiceProperties.ENV_BHASHINI_PIPELINE_ID
+                    + " and switch " + ENV_OCR_PROVIDER_DOC + " to 'bhashini', then restart. "
+                    + "Extracted text still requires physician review.";
+        }
+        return "No operational OCR engine is bound for the configured provider; image text cannot "
+                + "be extracted. See docs/WC-setup-guide.md for enabling the Bhashini engine.";
+    }
+
+    private static final String ENV_OCR_PROVIDER_DOC = "MEDIKIOSK_OCR_PROVIDER (medikiosk.ocr.provider)";
+
     /** Honest capability summary for the OCR boundary. */
     public record OcrCapabilitiesResponse(String configuredProvider,
                                           OcrProviderStatus overallStatus,
                                           List<OcrCapability> engines,
-                                          String fallbackNote) {
+                                          String fallbackNote,
+                                          String setupHint) {
     }
 
     /** Honest capability summary for the handwriting-recognition boundary. */

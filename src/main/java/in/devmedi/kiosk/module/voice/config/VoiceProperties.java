@@ -28,6 +28,18 @@ public class VoiceProperties {
     public static final String PROVIDER_UNAVAILABLE = "unavailable";
     public static final String PROVIDER_BHASHINI = "bhashini";
 
+    /** Every provider switch value the wiring actually understands (closed set). */
+    public static final java.util.Set<String> KNOWN_PROVIDERS =
+            java.util.Set.of(PROVIDER_UNAVAILABLE, PROVIDER_BHASHINI);
+
+    // Environment variable names, kept as constants so setup hints, docs and
+    // tests cite exactly the names the code reads — never a paraphrase.
+    public static final String ENV_ASR_PROVIDER = "MEDIKIOSK_ASR_PROVIDER";
+    public static final String ENV_TTS_PROVIDER = "MEDIKIOSK_TTS_PROVIDER";
+    public static final String ENV_BHASHINI_USER_ID = "MEDIKIOSK_BHASHINI_USER_ID";
+    public static final String ENV_BHASHINI_API_KEY = "MEDIKIOSK_BHASHINI_API_KEY";
+    public static final String ENV_BHASHINI_PIPELINE_ID = "MEDIKIOSK_BHASHINI_PIPELINE_ID";
+
     public static final String DEFAULT_BHASHINI_API_URL =
             "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline";
 
@@ -65,6 +77,77 @@ public class VoiceProperties {
 
     public boolean ttsUsesBhashini() {
         return PROVIDER_BHASHINI.equalsIgnoreCase(ttsProvider);
+    }
+
+    /** @return whether the ASR switch names a provider the wiring understands. */
+    public boolean asrProviderKnown() {
+        return asrProvider != null && KNOWN_PROVIDERS.contains(asrProvider.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** @return whether the TTS switch names a provider the wiring understands. */
+    public boolean ttsProviderKnown() {
+        return ttsProvider != null && KNOWN_PROVIDERS.contains(ttsProvider.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * Honest, resolved ASR provider name for status reporting: the real provider
+     * only when the wiring would actually engage it (switch set AND credentials
+     * complete); the deterministic fallback name otherwise. An unknown switch
+     * value is never echoed as a provider — the wiring binds the fallback.
+     */
+    public String resolvedAsrProvider() {
+        return asrUsesBhashini() && bhashini.isComplete() ? PROVIDER_BHASHINI : PROVIDER_UNAVAILABLE;
+    }
+
+    /** @see #resolvedAsrProvider() */
+    public String resolvedTtsProvider() {
+        return ttsUsesBhashini() && bhashini.isComplete() ? PROVIDER_BHASHINI : PROVIDER_UNAVAILABLE;
+    }
+
+    /**
+     * Actionable, secret-free setup guidance derived from the actual voice
+     * configuration state: which switch is off and which credentials are
+     * missing. Null exactly when both ASR and TTS are live — an operational
+     * capability needs no setup instructions. Environment-variable names are
+     * cited from the constants above, never paraphrased, and no credential
+     * value is ever included.
+     */
+    public String setupHint() {
+        boolean asrLive = asrUsesBhashini() && bhashini.isComplete();
+        boolean ttsLive = ttsUsesBhashini() && bhashini.isComplete();
+        if (asrLive && ttsLive) {
+            return null;
+        }
+        StringBuilder hint = new StringBuilder("Not live. ");
+        boolean asrSwitchOff = !asrUsesBhashini();
+        boolean ttsSwitchOff = !ttsUsesBhashini();
+        if (asrSwitchOff || ttsSwitchOff) {
+            hint.append("Set ");
+            boolean needAnd = false;
+            if (asrSwitchOff) {
+                hint.append(ENV_ASR_PROVIDER);
+                needAnd = true;
+            }
+            if (ttsSwitchOff) {
+                if (needAnd) {
+                    hint.append(" and ");
+                }
+                hint.append(ENV_TTS_PROVIDER);
+            }
+            hint.append(" to 'bhashini'");
+            if (!asrSwitchOff || !ttsSwitchOff) {
+                hint.append(" (the other direction already is)");
+            }
+            hint.append(".");
+        }
+        if (!bhashini.isComplete()) {
+            hint.append(asrSwitchOff || ttsSwitchOff ? " Then provide " : " Provide ")
+                    .append(ENV_BHASHINI_USER_ID).append(", ")
+                    .append(ENV_BHASHINI_API_KEY).append(" and ")
+                    .append(ENV_BHASHINI_PIPELINE_ID)
+                    .append(" from the Bhashini/ULCA registration, then restart.");
+        }
+        return hint.toString();
     }
 
     /** Bhashini/ULCA settings; a real provider only activates when credentials are complete. */

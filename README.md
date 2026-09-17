@@ -334,6 +334,16 @@ configured for AI providers.
 Both endpoints live under `/patient/**` so the existing patient role and CSRF
 protections apply unchanged.
 
+### Setup handoff (WC)
+
+For the full manual setup walk-through — where each credential comes from,
+local verification commands, the OCR operator-verification requirement, the
+public-apis catalogue verdict on additional voice providers, and what cannot
+be tested until credentials exist — see **`docs/WC-setup-guide.md`**. Startup
+now also logs a `voice.*` warning naming the exact missing environment variable
+whenever voice is misconfigured, and the capability endpoints plus the landing
+and admin pages carry the same secret-free setup hints.
+
 ### Languages
 
 Five languages are selectable: English (`en-IN`), Hindi (`hi-IN`), Telugu

@@ -178,19 +178,27 @@
                                     <span class="badge" th:classappend="${aiConfigured} ? 'text-bg-success' : 'text-bg-warning'"
                                           th:text="${aiConfigured} ? 'Configured' : 'Depending on key'">Depending on key</span>
                                 </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                    <span>Printed-document OCR via Bhashini/ULCA</span>
-                                    <span class="badge text-bg-warning" th:if="${ocrImplementedNotVerified}"
-                                          title="Integration is implemented; this deployment has no verified credentials, so it is treated as not live.">Implemented, not credential-verified</span>
-                                    <span class="badge text-bg-success" th:if="${ocrOperational}"
-                                          th:text="${ocrStatus}">Live</span>
-                                    <span class="badge text-bg-light border text-muted" th:unless="${ocrImplementedNotVerified or ocrOperational}"
-                                          th:text="${ocrStatus}">NOT_IMPLEMENTED</span>
+                                <li class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>Printed-document OCR via Bhashini/ULCA</span>
+                                        <span class="badge text-bg-warning" th:if="${ocrImplementedNotVerified}"
+                                              title="Integration is implemented; this deployment has no verified credentials, so it is treated as not live.">Implemented, not credential-verified</span>
+                                        <span class="badge text-bg-success" th:if="${ocrOperational}"
+                                              th:text="${ocrStatus}">Live</span>
+                                        <span class="badge text-bg-light border text-muted" th:unless="${ocrImplementedNotVerified or ocrOperational}"
+                                              th:text="${ocrStatus}">NOT_IMPLEMENTED</span>
+                                    </div>
+                                    <div class="small text-secondary mt-1" th:if="${ocrSetupHint != null}"
+                                          th:text="${ocrSetupHint}">Setup hint</div>
                                 </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                    <span>Voice input / read-aloud (ASR / TTS)</span>
-                                    <span class="badge text-bg-success" th:if="${voiceLive}">Configured</span>
-                                    <span class="badge text-bg-light border text-muted" th:unless="${voiceLive}">Depending on key</span>
+                                <li class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>Voice input / read-aloud (ASR / TTS)</span>
+                                        <span class="badge text-bg-success" th:if="${voiceLive}">Configured</span>
+                                        <span class="badge text-bg-light border text-muted" th:unless="${voiceLive}">Depending on key</span>
+                                    </div>
+                                    <div class="small text-secondary mt-1" th:if="${voiceSetupHint != null}"
+                                          th:text="${voiceSetupHint}">Setup hint</div>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                     <span>Handwriting recognition</span>

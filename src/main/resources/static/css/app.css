@@ -1078,3 +1078,351 @@ html[data-mk-motion="reduced"] .mk-correction-overlay,
 html[data-mk-motion="reduced"] .mk-correction-dialog {
     animation: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CGS.1 — WEBSITE VISUAL REDESIGN (reference-image derived)
+   Target: light, whitespace-heavy healthcare surface. Deep navy text,
+   canonical-brand teal as the primary action color, blue reserved for
+   links/secondary accents, pale teal-tinted cards. Implemented on top of
+   Bootstrap 5.3's own CSS-variable API so the 34 existing Thymeleaf
+   templates (bg-primary headers, btn-primary, badges, links, focus
+   rings) retheme without markup rewrites. Dark theme and the RD2 motion
+   layer are preserved and re-bridged below.
+
+   Derived from the reference image (1536x1024): 94% near-white surface
+   #fafcfc, deep navy #093758, teal #0f8d7b, pale teal cards #d5ece9.
+   Both hues match the canonical MediKiosk logo palette (#188e7d teal,
+   #0d3862 navy) within visual tolerance — brand and reference converge.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Canonical brand + reference-aligned palette. */
+    --mk-navy-900: #082c46;
+    --mk-navy-800: #093758;
+    --mk-navy-700: #0d4a6e;
+    --mk-navy-600: #155e83;
+    --mk-teal-700: #0b6f60;
+    --mk-teal-600: #0f8d7b;
+    --mk-teal-500: #16a894;
+    --mk-teal-100: #d5ece9;
+    --mk-teal-050: #eef7f6;
+    --mk-surface-050: #fafcfc;
+
+    /* Bootstrap 5.3 component theme — teal replaces the Bootstrap blue as
+       the primary action color; navy becomes body/heading text. */
+    --bs-primary: #0f8d7b;
+    --bs-primary-rgb: 15, 141, 123;
+    --bs-primary-text-emphasis: #0b6f60;
+    --bs-primary-bg-subtle: var(--mk-teal-100);
+    --bs-primary-border-subtle: #b3ddd6;
+    --bs-link-color: #0d4a6e;
+    --bs-link-color-rgb: 13, 74, 110;
+    --bs-link-hover-color: #0f8d7b;
+    --bs-link-hover-color-rgb: 15, 141, 123;
+    --bs-body-color: #22303c;
+    --bs-body-color-rgb: 34, 48, 60;
+    --bs-secondary-color: rgba(34, 48, 60, 0.72);
+    --bs-emphasis-color: var(--mk-navy-800);
+    --bs-body-bg: #ffffff;
+    --bs-body-bg-rgb: 255, 255, 255;
+    --bs-secondary-bg: #f4f8f8;
+    --bs-secondary-bg-rgb: 244, 248, 248;
+    --bs-tertiary-bg: var(--mk-surface-050);
+    --bs-border-color: #dce5e5;
+    --bs-focus-ring-color: rgba(15, 141, 123, 0.4);
+
+    /* Legacy brand variables resolve to the canonical palette so the
+       pre-existing .medikiosk-title / .skip-link / inline usages stay coherent. */
+    --medikiosk-primary: #0f8d7b;
+    --medikiosk-accent: #109483;
+}
+
+/* Headings read in deep navy, as in the reference. */
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    color: var(--mk-navy-800);
+}
+
+.medikiosk-title {
+    color: var(--mk-navy-800);
+}
+
+/* Buttons: teal primary, navy outline/secondary action. */
+.btn {
+    --bs-btn-font-weight: 600;
+}
+
+.btn-primary {
+    --bs-btn-bg: #0f8d7b;
+    --bs-btn-border-color: #0f8d7b;
+    --bs-btn-hover-bg: #0d7a6a;
+    --bs-btn-hover-border-color: #0c7364;
+    --bs-btn-active-bg: #0b6f60;
+    --bs-btn-active-border-color: #0b6f60;
+    --bs-btn-disabled-bg: #0f8d7b;
+    --bs-btn-disabled-border-color: #0f8d7b;
+    --bs-btn-focus-shadow-rgb: 15, 141, 123;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: #0b6f60;
+    --bs-btn-border-color: #0f8d7b;
+    --bs-btn-hover-bg: #0f8d7b;
+    --bs-btn-hover-border-color: #0f8d7b;
+    --bs-btn-active-bg: #0b6f60;
+    --bs-btn-active-border-color: #0b6f60;
+    --bs-btn-disabled-color: #0f8d7b;
+    --bs-btn-disabled-border-color: #0f8d7b;
+    --bs-btn-focus-shadow-rgb: 15, 141, 123;
+}
+
+.btn-outline-secondary {
+    --bs-btn-color: var(--mk-navy-700);
+    --bs-btn-border-color: #c3d2d2;
+    --bs-btn-hover-bg: var(--mk-navy-800);
+    --bs-btn-hover-border-color: var(--mk-navy-800);
+    --bs-btn-active-bg: var(--mk-navy-900);
+    --bs-btn-active-border-color: var(--mk-navy-900);
+}
+
+/* Reference surface: near-white with a faint cool cast, not Bootstrap's
+   flat gray #f8f9fa. Applied to body.bg-light and light utility users. */
+body.bg-light {
+    background-color: var(--mk-surface-050);
+}
+
+/* Reference cards: soft radius, restrained teal-tinted shadow, and a
+   hairline border so surfaces stay defined on the white canvas. */
+.card {
+    --bs-card-border-color: rgba(9, 55, 88, 0.08);
+    --bs-card-border-radius: 1rem;
+    --bs-card-cap-bg: var(--mk-teal-050);
+    box-shadow: 0 1px 2px rgba(9, 55, 88, 0.05);
+}
+
+.card.hoverable-lg:hover,
+.card.mk-liftable:hover {
+    box-shadow: var(--mk-motion-lift-raised);
+}
+
+/* Feature/info rows rendered as pale-teal tinted surfaces, exactly the
+   card treatment visible in the reference's lower content bands. */
+.mk-panel {
+    background: var(--mk-teal-050);
+    border: 1px solid rgba(15, 141, 123, 0.14);
+    border-radius: 1rem;
+}
+
+/* Badges: teal default; navy when info-density needs it. */
+.badge.text-bg-primary {
+    --bs-badge-bg: #0f8d7b;
+}
+
+/* Forms: navy-ink inputs with teal focus, matching the reference's calm
+   controls. */
+.form-control,
+.form-select {
+    border-color: #c9d6d6;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #16a894;
+    box-shadow: 0 0 0 0.25rem rgba(15, 141, 123, 0.18);
+}
+
+.form-label {
+    color: var(--mk-navy-800);
+    font-weight: 600;
+}
+
+/* Focus ring follows the primary teal (RD1 declared a blue ring). */
+:focus-visible {
+    outline: 3px solid rgba(15, 141, 123, 0.55);
+    outline-offset: 2px;
+}
+
+/* ─── White top navigation — the reference's header band ─────────────── */
+/* Top navigation surface: white chrome with navy ink and teal active
+   states, matching the reference's white header band. The dark theme
+   keeps its own dark surface further below. */
+.mk-topnav-header {
+    background: #ffffff;
+    color: var(--mk-navy-800);
+    border-bottom: 1px solid #e3ecec;
+    box-shadow: 0 1px 2px rgba(9, 55, 88, 0.04);
+}
+
+.mk-topnav-header .medikiosk-brand__wordmark {
+    color: var(--mk-navy-800);
+}
+
+header.bg-primary.text-white .medikiosk-brand__wordmark {
+    color: var(--mk-navy-800);
+}
+
+header.bg-primary.text-white a.text-white {
+    color: var(--mk-navy-800) !important;
+}
+
+header.bg-primary.text-white .mk-topnav__link {
+    color: #33475b;
+}
+
+header.bg-primary.text-white .mk-topnav__link:hover,
+header.bg-primary.text-white .mk-topnav__link:focus-visible,
+header.bg-primary.text-white .mk-topnav__link.is-active {
+    color: #0b6f60;
+    background: var(--mk-teal-100);
+}
+
+header.bg-primary.text-white .small.text-white-50 {
+    color: #5b7080 !important;
+}
+
+/* Sign-in / Sign-out pill: teal outline that fills on hover. */
+header.bg-primary.text-white .btn-outline-light {
+    --bs-btn-color: #0b6f60;
+    --bs-btn-border-color: #9ccfc7;
+    --bs-btn-hover-bg: #0f8d7b;
+    --bs-btn-hover-border-color: #0f8d7b;
+    --bs-btn-active-bg: #0b6f60;
+    --bs-btn-active-border-color: #0b6f60;
+    --bs-btn-focus-shadow-rgb: 15, 141, 123;
+}
+
+/* Skip link inherits the teal primary. */
+.skip-link {
+    background: #0f8d7b;
+}
+
+/* ─── Hero: white canvas, navy display type, teal eyebrow — the reference's
+   top content band ────────────────────────────────────────────────────── */
+.mk-hero {
+    background: #ffffff;
+}
+
+.mk-hero .display-5,
+.mk-hero .display-6 {
+    color: var(--mk-navy-800);
+}
+
+.mk-eyebrow {
+    color: #0b6f60;
+    background: var(--mk-teal-100);
+}
+
+/* ─── Dark theme re-bridge (RD2 parity) ───────────────────────────────── */
+html[data-bs-theme="dark"] {
+    --bs-primary: #2fbfa8;
+    --bs-primary-rgb: 47, 191, 168;
+    --bs-link-color: #7fd8c9;
+    --bs-link-color-rgb: 127, 216, 201;
+    --bs-link-hover-color: #9ce4d8;
+    --bs-emphasis-color: #e9f1f2;
+    --bs-body-color: #d5dde1;
+    --bs-secondary-color: rgba(213, 221, 225, 0.72);
+}
+
+html[data-bs-theme="dark"] .mk-topnav-header {
+    background: #1b1f24 !important;
+    color: #e9f1f2 !important;
+    border-bottom-color: #343a40;
+}
+
+html[data-bs-theme="dark"] .mk-topnav-header .medikiosk-brand__wordmark {
+    color: #e9f1f2 !important;
+}
+
+html[data-bs-theme="dark"] .mk-topnav-header .mk-topnav__link {
+    color: #b9c4cc;
+}
+
+html[data-bs-theme="dark"] .mk-topnav-header .mk-topnav__link:hover,
+html[data-bs-theme="dark"] .mk-topnav-header .mk-topnav__link:focus-visible,
+html[data-bs-theme="dark"] .mk-topnav-header .mk-topnav__link.is-active {
+    color: #7fd8c9;
+    background: #23343a;
+}
+
+html[data-bs-theme="dark"] .mk-eyebrow {
+    color: #7fd8c9;
+    background: #1d2f30;
+}
+
+html[data-bs-theme="dark"] .btn-primary {
+    --bs-btn-bg: #2fbfa8;
+    --bs-btn-border-color: #2fbfa8;
+    --bs-btn-hover-bg: #49cbb6;
+    --bs-btn-hover-border-color: #49cbb6;
+    --bs-btn-active-bg: #25a993;
+    --bs-btn-active-border-color: #25a993;
+    --bs-btn-disabled-bg: #2fbfa8;
+    --bs-btn-disabled-border-color: #2fbfa8;
+}
+
+html[data-bs-theme="dark"] .btn-outline-primary {
+    --bs-btn-color: #2fbfa8;
+    --bs-btn-border-color: #2fbfa8;
+    --bs-btn-hover-color: #06251f;
+    --bs-btn-hover-bg: #2fbfa8;
+    --bs-btn-hover-border-color: #2fbfa8;
+}
+
+html[data-bs-theme="dark"] .btn-outline-light {
+    --bs-btn-color: #e9f1f2;
+    --bs-btn-border-color: #4a565f;
+    --bs-btn-hover-bg: #2a353c;
+    --bs-btn-hover-border-color: #6b7a85;
+}
+
+html[data-bs-theme="dark"] .mk-hero {
+    background: linear-gradient(135deg, #16222e 0%, #1b2a3a 50%, #123330 100%);
+}
+
+/* Navy ink rules above must invert with the dark theme. */
+html[data-bs-theme="dark"] h1,
+html[data-bs-theme="dark"] h2,
+html[data-bs-theme="dark"] h3,
+html[data-bs-theme="dark"] h4,
+html[data-bs-theme="dark"] h5,
+html[data-bs-theme="dark"] h6,
+html[data-bs-theme="dark"] .h1,
+html[data-bs-theme="dark"] .h2,
+html[data-bs-theme="dark"] .h3,
+html[data-bs-theme="dark"] .h4,
+html[data-bs-theme="dark"] .h5,
+html[data-bs-theme="dark"] .h6,
+html[data-bs-theme="dark"] .medikiosk-title,
+html[data-bs-theme="dark"] .form-label,
+html[data-bs-theme="dark"] .mk-hero .display-5,
+html[data-bs-theme="dark"] .mk-hero .display-6 {
+    color: var(--bs-emphasis-color);
+}
+
+html[data-bs-theme="dark"] .mk-panel {
+    background: #1d2a2c;
+    border-color: #2c4340;
+}
+
+html[data-bs-theme="dark"] .card {
+    --bs-card-border-color: #343a40;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* CGS.1 — responsive refinements matching the reference's mobile rhythm:
+   comfortable touch targets, tight hero type scale, single-column stacks. */
+@media (max-width: 767.98px) {
+    .mk-hero .display-5 {
+        font-size: calc(1.6rem + 2.4vw);
+    }
+    .mk-hero {
+        padding-top: 1rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .btn-lg-mobile {
+        --bs-btn-padding-y: 0.75rem;
+        --bs-btn-padding-x: 1.5rem;
+    }
+}

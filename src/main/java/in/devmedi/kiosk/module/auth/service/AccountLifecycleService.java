@@ -66,11 +66,11 @@ public class AccountLifecycleService {
 
     @Transactional
     public User registerPatient(String username, String password, String displayName) {
-        PasswordCheck check = validateRegistration(username, password, displayName);
-        if (!check.valid()) {
-            throw new AccountValidationException(check.message());
+        RegistrationValidation validation = validateRegistration(username, password, displayName);
+        if (!validation.check().valid()) {
+            throw new AccountValidationException(validation.check().message());
         }
-        User user = new User(username, passwordEncoder.encode(password), displayName,
+        User user = new User(validation.username(), passwordEncoder.encode(password), displayName,
                 in.devmedi.kiosk.module.auth.entity.Role.PATIENT);
         userRepository.save(user);
         patientProfileRepository.save(PatientProfile.create(user));
@@ -93,14 +93,19 @@ public class AccountLifecycleService {
                                                    String registrationNumber,
                                                    String email,
                                                    String phone) {
-        if (userRepository.existsByUsername(username)) {
-            throw new AccountValidationException("Username is already taken: " + username);
+        List<String> usernameProblems = new ArrayList<>();
+        String normalizedUsername = validateUsername(username, usernameProblems);
+        if (!usernameProblems.isEmpty()) {
+            throw new AccountValidationException(String.join(" ", usernameProblems));
+        }
+        if (userRepository.existsByUsername(normalizedUsername)) {
+            throw new AccountValidationException("Username is already taken: " + normalizedUsername);
         }
         if (displayName == null || displayName.isBlank()) {
             throw new AccountValidationException("Display name must not be empty.");
         }
         String temporaryPassword = passwordPolicy.generateTemporary();
-        User user = new User(username, passwordEncoder.encode(temporaryPassword), displayName,
+        User user = new User(normalizedUsername, passwordEncoder.encode(temporaryPassword), displayName,
                 in.devmedi.kiosk.module.auth.entity.Role.PHYSICIAN);
         user.setMustChangePassword(true);
         userRepository.save(user);
@@ -410,14 +415,34 @@ public class AccountLifecycleService {
                                        String profilePicturePath) {
     }
 
-    private PasswordCheck validateRegistration(String username, String password, String displayName) {
-        List<String> problems = new ArrayList<>();
-        if (username == null || username.isBlank() || username.length() < 3
-                || !username.matches("[a-zA-Z0-9._-]+")) {
-            problems.add("Username must be at least 3 characters using letters, digits, . _ - only.");
+    /** Registration validation outcome: the normalized username plus any problems. */
+    public record RegistrationValidation(String username, PasswordCheck check) {
+    }
+
+    /**
+     * Username rules (CGS.1 correction): any reasonable readable username is
+     * allowed — no character whitelist. Only trimmed non-blankness and the
+     * 3-64 length window are enforced; uniqueness stays a DB-backed
+     * guarantee on the unique column. Leading/trailing whitespace is trimmed
+     * once here so stored credentials never carry it.
+     */
+    private static String validateUsername(String username, List<String> problems) {
+        if (username == null) {
+            problems.add("Username must be between 3 and 64 characters.");
+            return "";
         }
-        if (userRepository.existsByUsername(username)) {
-            problems.add("Username is already taken: " + username);
+        String normalized = username.trim();
+        if (normalized.length() < 3 || normalized.length() > 64) {
+            problems.add("Username must be between 3 and 64 characters.");
+        }
+        return normalized;
+    }
+
+    private RegistrationValidation validateRegistration(String username, String password, String displayName) {
+        List<String> problems = new ArrayList<>();
+        String normalizedUsername = validateUsername(username, problems);
+        if (userRepository.existsByUsername(normalizedUsername)) {
+            problems.add("Username is already taken: " + normalizedUsername);
         }
         if (displayName == null || displayName.isBlank() || displayName.length() > 200) {
             problems.add("Display name must not be empty (max 200 characters).");
@@ -426,9 +451,9 @@ public class AccountLifecycleService {
         if (!passwordCheck.valid()) {
             problems.add(passwordCheck.message());
         }
-        return problems.isEmpty()
+        return new RegistrationValidation(normalizedUsername, problems.isEmpty()
                 ? PasswordCheck.ok()
-                : PasswordCheck.fail(String.join(" ", problems));
+                : PasswordCheck.fail(String.join(" ", problems)));
     }
 
     /** Result of provisioning a physician account (user + temporary password). */

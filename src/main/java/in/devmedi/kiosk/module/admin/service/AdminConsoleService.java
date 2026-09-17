@@ -317,14 +317,15 @@ public class AdminConsoleService {
         OcrCapabilityService.OcrCapabilitiesResponse ocr = ocrCapabilityService.ocrCapabilities();
         OcrCapabilityService.HwrCapabilityResponse hwr = ocrCapabilityService.hwrCapability();
         // Voice truth mirrors the exact predicate VoiceConfig uses to engage a
-        // real provider instead of the UNAVAILABLE fallback.
-        boolean asrLive = voiceProperties.asrUsesBhashini() && voiceProperties.getBhashini().isComplete();
-        boolean ttsLive = voiceProperties.ttsUsesBhashini() && voiceProperties.getBhashini().isComplete();
+        // real provider instead of the UNAVAILABLE fallback (resolved*Provider
+        // applies that predicate and normalizes unknown switch values).
         VoiceCapabilityStatus voice = new VoiceCapabilityStatus(
-                asrLive ? voiceProperties.getAsrProvider() : in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_UNAVAILABLE,
-                asrLive,
-                ttsLive ? voiceProperties.getTtsProvider() : in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_UNAVAILABLE,
-                ttsLive);
+                voiceProperties.resolvedAsrProvider(),
+                in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_BHASHINI
+                        .equals(voiceProperties.resolvedAsrProvider()),
+                voiceProperties.resolvedTtsProvider(),
+                in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_BHASHINI
+                        .equals(voiceProperties.resolvedTtsProvider()));
         return new CapabilitySummary(
                 ocr.overallStatus(),
                 ocr.engines().size(),
@@ -332,6 +333,8 @@ public class AdminConsoleService {
                 hwr.status(),
                 hwr.provider(),
                 voice,
+                voiceProperties.setupHint(),
+                ocr.setupHint(),
                 aiProviders(),
                 hisIntegrationBoundary.isConfigured(),
                 hisIntegrationBoundary.transportLabel(),
@@ -388,6 +391,8 @@ public class AdminConsoleService {
                                     OcrProviderStatus hwrStatus,
                                     String hwrProvider,
                                     VoiceCapabilityStatus voiceStatus,
+                                    String voiceSetupHint,
+                                    String ocrSetupHint,
                                     List<AiProviderStatus> aiProviders,
                                     boolean hisConfigured,
                                     String hisTransportLabel,

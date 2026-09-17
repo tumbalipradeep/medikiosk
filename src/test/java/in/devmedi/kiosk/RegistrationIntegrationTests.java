@@ -77,6 +77,71 @@ class RegistrationIntegrationTests {
     }
 
     @Test
+    void usernameWithSpacesAndOrdinaryCharactersRegistersAndLogsIn() throws Exception {
+        String username = unique("mary ann");
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", username)
+                        .param("displayName", "Mary Ann")
+                        .param("password", validPassword())
+                        .param("confirmPassword", validPassword()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?registered"));
+
+        assertThat(userRepository.findByUsername(username)).isPresent();
+        MockHttpSession session = login(username, validPassword());
+        assertThat(session).isNotNull();
+    }
+
+    @Test
+    void usernameIsTrimmedOnceAndStoredWithoutSurroundingWhitespace() throws Exception {
+        String username = unique("trim me");
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "  " + username + "  ")
+                        .param("displayName", "Trim Test")
+                        .param("password", validPassword())
+                        .param("confirmPassword", validPassword()))
+                .andExpect(status().is3xxRedirection());
+
+        assertThat(userRepository.findByUsername(username)).isPresent();
+        assertThat(userRepository.findByUsername("  " + username + "  ")).isEmpty();
+        MockHttpSession session = login(username, validPassword());
+        assertThat(session).isNotNull();
+    }
+
+    @Test
+    void shortAndOverlongUsernamesAreRejected() throws Exception {
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "ab")
+                        .param("displayName", "Short Name")
+                        .param("password", validPassword())
+                        .param("confirmPassword", validPassword()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString("between 3 and 64")));
+
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "a".repeat(65))
+                        .param("displayName", "Long Name")
+                        .param("password", validPassword())
+                        .param("confirmPassword", validPassword()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString("between 3 and 64")));
+    }
+
+    @Test
+    void blankUsernameIsRejected() throws Exception {
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "   ")
+                        .param("displayName", "Blank Name")
+                        .param("password", validPassword())
+                        .param("confirmPassword", validPassword()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString("between 3 and 64")));
+    }
+
+    @Test
     void roleParamCannotEscalateRegistrationToAdminOrPhysician() throws Exception {
         String adminAttempt = unique("esc-admin");
         String physicianAttempt = unique("esc-phys");

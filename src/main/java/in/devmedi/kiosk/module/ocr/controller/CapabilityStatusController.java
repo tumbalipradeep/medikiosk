@@ -65,21 +65,23 @@ public class CapabilityStatusController {
      * provider AND its credentials complete) — the same predicate the wiring
      * uses to bind the live service instead of the deterministic UNAVAILABLE
      * fallback. Reports provider names only; never credential values, audio,
-     * or patient data.
+     * or patient data. When a capability is not live, {@code setupHint} names
+     * the exact environment variables an operator must set — the same
+     * constants the startup warning cites.
      */
     @GetMapping("/voice")
     public VoiceCapabilityResponse voice() {
-        boolean asrLive = voiceProperties.asrUsesBhashini() && voiceProperties.getBhashini().isComplete();
-        boolean ttsLive = voiceProperties.ttsUsesBhashini() && voiceProperties.getBhashini().isComplete();
-        String asrProvider = asrLive ? voiceProperties.getAsrProvider()
-                : in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_UNAVAILABLE;
-        String ttsProvider = ttsLive ? voiceProperties.getTtsProvider()
-                : in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_UNAVAILABLE;
-        return new VoiceCapabilityResponse(asrProvider, asrLive, ttsProvider, ttsLive);
+        String asrProvider = voiceProperties.resolvedAsrProvider();
+        String ttsProvider = voiceProperties.resolvedTtsProvider();
+        boolean asrLive = VoiceProperties.PROVIDER_BHASHINI.equals(asrProvider);
+        boolean ttsLive = VoiceProperties.PROVIDER_BHASHINI.equals(ttsProvider);
+        return new VoiceCapabilityResponse(asrProvider, asrLive, ttsProvider, ttsLive,
+                voiceProperties.setupHint());
     }
 
     /** Honest capability summary for the patient voice (ASR/TTS) boundary. */
     public record VoiceCapabilityResponse(String asrProvider, boolean asrAvailable,
-                                          String ttsProvider, boolean ttsAvailable) {
+                                          String ttsProvider, boolean ttsAvailable,
+                                          String setupHint) {
     }
 }

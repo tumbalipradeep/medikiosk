@@ -117,4 +117,37 @@ class CapabilityStatusIntegrationTests {
         // Configuration-level only: no credential material may ever appear.
         assertThat(body).doesNotContain("apiKey").doesNotContain("Bearer").doesNotContain("pipelineId");
     }
+
+    @Test
+    void voiceCapabilityEndpointCarriesActionableSecretFreeSetupHint() throws Exception {
+        boolean asrLive = voiceProperties.resolvedAsrProvider()
+                .equals(in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_BHASHINI);
+        boolean ttsLive = voiceProperties.resolvedTtsProvider()
+                .equals(in.devmedi.kiosk.module.voice.config.VoiceProperties.PROVIDER_BHASHINI);
+        org.assertj.core.api.Assumptions.assumeThat(asrLive && ttsLive).isFalse();
+
+        String body = mockMvc.perform(get("/api/capabilities/voice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.setupHint").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+
+        // The hint must cite the exact environment-variable names the code reads
+        // (constants from VoiceProperties), so an operator can act on it directly.
+        assertThat(body)
+                .contains(in.devmedi.kiosk.module.voice.config.VoiceProperties.ENV_ASR_PROVIDER)
+                .contains(in.devmedi.kiosk.module.voice.config.VoiceProperties.ENV_TTS_PROVIDER)
+                .contains(in.devmedi.kiosk.module.voice.config.VoiceProperties.ENV_BHASHINI_USER_ID);
+        // Secret-free by construction: variable names, never values.
+        assertThat(body).doesNotContain("=").doesNotContain("Bearer");
+    }
+
+    @Test
+    void ocrCapabilityEndpointCarriesSetupHintWhileNotOperational() throws Exception {
+        var ocr = capabilityService.ocrCapabilities();
+        org.assertj.core.api.Assumptions.assumeThat(ocr.overallStatus().isOperational()).isFalse();
+
+        mockMvc.perform(get("/api/capabilities/ocr"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.setupHint").isNotEmpty());
+    }
 }

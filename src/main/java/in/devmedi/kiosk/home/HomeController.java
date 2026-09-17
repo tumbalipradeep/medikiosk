@@ -85,6 +85,8 @@ public class HomeController {
         boolean voiceLive = (voiceProperties.asrUsesBhashini() && voiceProperties.getBhashini().isComplete())
                 || (voiceProperties.ttsUsesBhashini() && voiceProperties.getBhashini().isComplete());
         model.addAttribute("voiceLive", voiceLive);
+        model.addAttribute("voiceSetupHint", voiceProperties.setupHint());
+        model.addAttribute("ocrSetupHint", ocr.setupHint());
 
         model.addAttribute("hisLabel", hisIntegrationBoundary.transportLabel());
         model.addAttribute("hisConfigured", hisIntegrationBoundary.isConfigured());
